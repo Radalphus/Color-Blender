@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Blender</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Color Blender</h1>
+            <p>Upload an image, pick colors, and blend them on your palette</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Image Upload and Eyedropper Section -->
+            <div class="image-section">
+                <h2>Image & Color Picker</h2>
+                <div class="upload-area">
+                    <input type="file" id="imageUpload" accept="image/*">
+                    <label for="imageUpload" class="upload-label">
+                        <span>📁 Choose Image</span>
+                    </label>
+                </div>
+                <div class="canvas-container">
+                    <canvas id="imageCanvas"></canvas>
+                </div>
+                <div class="selected-color-display">
+                    <div class="color-info">
+                        <div id="selectedColorSwatch" class="color-swatch"></div>
+                        <div class="color-values">
+                            <span id="hexValue">No color selected</span>
+                            <span id="rgbValue"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3x3 Grid Section -->
+            <div class="grid-section">
+                <h2>Color Palette</h2>
+                <div class="palette-grid" id="paletteGrid">
+                    <!-- 3x3 grid cells will be generated here -->
+                </div>
+                <div class="controls">
+                    <button id="clearGrid" class="btn">Clear Palette</button>
+                    <button id="savePalette" class="btn btn-primary">Save Palette</button>
+                    <button id="exportPalette" class="btn btn-primary">Export as Image</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h3>How to Use:</h3>
+            <ol>
+                <li>Upload an image using the file button</li>
+                <li>Click on the image to pick colors with the eyedropper</li>
+                <li>Click on a palette cell once to set the FIRST color</li>
+                <li>Pick another color and click the same cell to set the SECOND color</li>
+                <li>Once both colors are set, click and drag within the cell to blend them smoothly</li>
+                <li>The blending transitions from left color to right color as you drag across</li>
+                <li>Save or export your color palette when done</li>
+            </ol>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
