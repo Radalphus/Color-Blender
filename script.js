@@ -198,15 +198,13 @@ function setupPaletteCellEvents(cell, index) {
                 ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
             }
         }
-        // BLENDING MODE: Blend the entire cell
+        // BLENDING MODE: Do nothing on click, only drag to blend
         else if (currentMode === 'blending') {
             if (!cell.color1 || !cell.color2) {
                 alert('Please set both colors first (switch to Color Picking Mode)!');
                 return;
             }
-
-            // Fill entire cell with gradient from color1 to color2
-            blendEntireCell(cell);
+            // Click does nothing in blending mode - user must drag to blend
         }
     });
 
@@ -244,31 +242,17 @@ function setupPaletteCellEvents(cell, index) {
     });
 }
 
-// Blend entire cell with gradient from color1 to color2
-function blendEntireCell(cell) {
-    const { ctx, canvas } = cell;
-
-    // Create a full-width gradient
-    const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-    gradient.addColorStop(0, `rgb(${cell.color1.r}, ${cell.color1.g}, ${cell.color1.b})`);
-    gradient.addColorStop(1, `rgb(${cell.color2.r}, ${cell.color2.g}, ${cell.color2.b})`);
-
-    // Fill the entire cell with the gradient
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-}
-
-// Draw smooth blend at position
+// Draw blend - mixes the two colors together where you drag
 function drawBlend(cell, x, y) {
     if (!cell.color1 || !cell.color2) return;
 
     const { ctx, canvas } = cell;
-    const brushSize = 30;
+    const brushSize = 40;
 
-    // Get the current pixel color at this position
+    // Get the current pixel color at brush position
     const imageData = ctx.getImageData(
-        Math.max(0, x - 1),
-        Math.max(0, y - 1),
+        Math.max(0, Math.floor(x)),
+        Math.max(0, Math.floor(y)),
         1,
         1
     );
@@ -279,30 +263,51 @@ function drawBlend(cell, x, y) {
         b: currentPixel[2]
     };
 
-    // Calculate which color to blend based on position (left side = color1, right side = color2)
-    const blendRatio = x / canvas.width; // 0 to 1, left to right
-    const targetColor = {
-        r: Math.round(cell.color1.r * (1 - blendRatio) + cell.color2.r * blendRatio),
-        g: Math.round(cell.color1.g * (1 - blendRatio) + cell.color2.g * blendRatio),
-        b: Math.round(cell.color1.b * (1 - blendRatio) + cell.color2.b * blendRatio)
+    // Calculate mixed color: blend current color with both cell colors
+    // This creates a true mixing effect
+    let mixedColor;
+
+    // If current color is close to color1, mix towards color2
+    // If current color is close to color2, mix towards color1
+    // Otherwise, mix both colors together
+
+    const dist1 = colorDistance(currentColor, cell.color1);
+    const dist2 = colorDistance(currentColor, cell.color2);
+
+    if (dist1 < 30) {
+        // Close to color1, mix with color2
+        mixedColor = mixColors(currentColor, cell.color2, 0.3);
+    } else if (dist2 < 30) {
+        // Close to color2, mix with color1
+        mixedColor = mixColors(currentColor, cell.color1, 0.3);
+    } else {
+        // In between or neutral, mix with both
+        const temp = mixColors(cell.color1, cell.color2, 0.5);
+        mixedColor = mixColors(currentColor, temp, 0.3);
+    }
+
+    // Paint with solid color (no gradient brush)
+    ctx.fillStyle = `rgb(${mixedColor.r}, ${mixedColor.g}, ${mixedColor.b})`;
+    ctx.beginPath();
+    ctx.arc(x, y, brushSize, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// Helper: Calculate color distance
+function colorDistance(c1, c2) {
+    const dr = c1.r - c2.r;
+    const dg = c1.g - c2.g;
+    const db = c1.b - c2.b;
+    return Math.sqrt(dr * dr + dg * dg + db * db);
+}
+
+// Helper: Mix two colors with a ratio
+function mixColors(c1, c2, ratio) {
+    return {
+        r: Math.round(c1.r * (1 - ratio) + c2.r * ratio),
+        g: Math.round(c1.g * (1 - ratio) + c2.g * ratio),
+        b: Math.round(c1.b * (1 - ratio) + c2.b * ratio)
     };
-
-    // Blend the current color with target color (smooth transition)
-    const blendFactor = 0.4; // Higher value = faster, more immediate blending
-    const blendedColor = {
-        r: Math.round(currentColor.r * (1 - blendFactor) + targetColor.r * blendFactor),
-        g: Math.round(currentColor.g * (1 - blendFactor) + targetColor.g * blendFactor),
-        b: Math.round(currentColor.b * (1 - blendFactor) + targetColor.b * blendFactor)
-    };
-
-    // Create gradient for soft brush
-    const gradient = ctx.createRadialGradient(x, y, 0, x, y, brushSize);
-    gradient.addColorStop(0, `rgba(${blendedColor.r}, ${blendedColor.g}, ${blendedColor.b}, 0.8)`);
-    gradient.addColorStop(0.5, `rgba(${blendedColor.r}, ${blendedColor.g}, ${blendedColor.b}, 0.4)`);
-    gradient.addColorStop(1, `rgba(${blendedColor.r}, ${blendedColor.g}, ${blendedColor.b}, 0)`);
-
-    ctx.fillStyle = gradient;
-    ctx.fillRect(x - brushSize, y - brushSize, brushSize * 2, brushSize * 2);
 }
 
 // Set active cell
