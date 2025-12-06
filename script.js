@@ -4,12 +4,14 @@ let currentPaletteCell = null;
 let imageCanvas = null;
 let imageCtx = null;
 let paletteCells = [];
+let currentMode = 'picking'; // 'picking' or 'blending'
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     initializeImageCanvas();
     initializePaletteGrid();
     setupEventListeners();
+    setupModeToggle();
 });
 
 // Initialize the image canvas for eyedropper
@@ -49,6 +51,24 @@ function initializePaletteGrid() {
 
         setupPaletteCellEvents(paletteCells[i], i);
     }
+}
+
+// Setup mode toggle
+function setupModeToggle() {
+    const pickingBtn = document.getElementById('pickingMode');
+    const blendingBtn = document.getElementById('blendingMode');
+
+    pickingBtn.addEventListener('click', () => {
+        currentMode = 'picking';
+        pickingBtn.classList.add('active');
+        blendingBtn.classList.remove('active');
+    });
+
+    blendingBtn.addEventListener('click', () => {
+        currentMode = 'blending';
+        blendingBtn.classList.add('active');
+        pickingBtn.classList.remove('active');
+    });
 }
 
 // Setup event listeners
@@ -144,44 +164,55 @@ function rgbToHex(r, g, b) {
 function setupPaletteCellEvents(cell, index) {
     const { container, canvas, ctx } = cell;
 
-    // Click to set colors (first click = color1, second click = color2)
+    // Click handler - mode dependent
     container.addEventListener('click', (e) => {
-        if (!selectedColor) {
-            alert('Please select a color from the image first!');
-            return;
-        }
+        // PICKING MODE: Set colors
+        if (currentMode === 'picking') {
+            if (!selectedColor) {
+                alert('Please select a color from the image first!');
+                return;
+            }
 
-        // If no colors set yet, set color1
-        if (!cell.color1) {
-            cell.color1 = { ...selectedColor };
-            // Fill left half with color1
-            ctx.fillStyle = `rgb(${cell.color1.r}, ${cell.color1.g}, ${cell.color1.b})`;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            setActiveCell(index);
-            updateCellColorIndicators(cell, index);
+            // If no colors set yet, set color1
+            if (!cell.color1) {
+                cell.color1 = { ...selectedColor };
+                // Fill entire cell with color1
+                ctx.fillStyle = `rgb(${cell.color1.r}, ${cell.color1.g}, ${cell.color1.b})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                setActiveCell(index);
+            }
+            // If color1 exists but not color2, set color2
+            else if (!cell.color2) {
+                cell.color2 = { ...selectedColor };
+                // Fill right half with color2
+                ctx.fillStyle = `rgb(${cell.color2.r}, ${cell.color2.g}, ${cell.color2.b})`;
+                ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
+            }
+            // If both colors exist, replace color2 with new selection
+            else {
+                cell.color2 = { ...selectedColor };
+                // Redraw: left half = color1, right half = color2
+                ctx.fillStyle = `rgb(${cell.color1.r}, ${cell.color1.g}, ${cell.color1.b})`;
+                ctx.fillRect(0, 0, canvas.width / 2, canvas.height);
+                ctx.fillStyle = `rgb(${cell.color2.r}, ${cell.color2.g}, ${cell.color2.b})`;
+                ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
+            }
         }
-        // If color1 exists but not color2, set color2
-        else if (!cell.color2) {
-            cell.color2 = { ...selectedColor };
-            // Fill right half with color2
-            ctx.fillStyle = `rgb(${cell.color2.r}, ${cell.color2.g}, ${cell.color2.b})`;
-            ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
-            updateCellColorIndicators(cell, index);
-        }
-        // If both colors exist, replace color2 with new selection
-        else {
-            cell.color2 = { ...selectedColor };
-            // Redraw: left half = color1, right half = color2
-            ctx.fillStyle = `rgb(${cell.color1.r}, ${cell.color1.g}, ${cell.color1.b})`;
-            ctx.fillRect(0, 0, canvas.width / 2, canvas.height);
-            ctx.fillStyle = `rgb(${cell.color2.r}, ${cell.color2.g}, ${cell.color2.b})`;
-            ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
-            updateCellColorIndicators(cell, index);
+        // BLENDING MODE: Blend the entire cell
+        else if (currentMode === 'blending') {
+            if (!cell.color1 || !cell.color2) {
+                alert('Please set both colors first (switch to Color Picking Mode)!');
+                return;
+            }
+
+            // Fill entire cell with gradient from color1 to color2
+            blendEntireCell(cell);
         }
     });
 
-    // Mouse down to start blending
+    // Mouse down to start painting in blending mode
     canvas.addEventListener('mousedown', (e) => {
+        if (currentMode !== 'blending') return;
         if (!cell.color1 || !cell.color2) return;
 
         cell.isDrawing = true;
@@ -192,9 +223,9 @@ function setupPaletteCellEvents(cell, index) {
         drawBlend(cell, x, y);
     });
 
-    // Mouse move for blending
+    // Mouse move for painting
     canvas.addEventListener('mousemove', (e) => {
-        if (!cell.isDrawing) return;
+        if (!cell.isDrawing || currentMode !== 'blending') return;
 
         const rect = canvas.getBoundingClientRect();
         const x = (e.clientX - rect.left) * (canvas.width / rect.width);
@@ -203,7 +234,7 @@ function setupPaletteCellEvents(cell, index) {
         drawBlend(cell, x, y);
     });
 
-    // Mouse up to stop blending
+    // Mouse up to stop painting
     canvas.addEventListener('mouseup', () => {
         cell.isDrawing = false;
     });
@@ -213,31 +244,18 @@ function setupPaletteCellEvents(cell, index) {
     });
 }
 
-// Update color indicators for a cell
-function updateCellColorIndicators(cell, index) {
-    // Remove existing indicators if any
-    const existingIndicator = cell.container.querySelector('.color-indicator');
-    if (existingIndicator) {
-        existingIndicator.remove();
-    }
+// Blend entire cell with gradient from color1 to color2
+function blendEntireCell(cell) {
+    const { ctx, canvas } = cell;
 
-    // Create color indicator overlay
-    const indicator = document.createElement('div');
-    indicator.className = 'color-indicator';
+    // Create a full-width gradient
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+    gradient.addColorStop(0, `rgb(${cell.color1.r}, ${cell.color1.g}, ${cell.color1.b})`);
+    gradient.addColorStop(1, `rgb(${cell.color2.r}, ${cell.color2.g}, ${cell.color2.b})`);
 
-    if (cell.color1 && cell.color2) {
-        indicator.innerHTML = `
-            <div class="color-slot" style="background: rgb(${cell.color1.r}, ${cell.color1.g}, ${cell.color1.b})"></div>
-            <div class="color-slot" style="background: rgb(${cell.color2.r}, ${cell.color2.g}, ${cell.color2.b})"></div>
-        `;
-    } else if (cell.color1) {
-        indicator.innerHTML = `
-            <div class="color-slot" style="background: rgb(${cell.color1.r}, ${cell.color1.g}, ${cell.color1.b})"></div>
-            <div class="color-slot empty">+</div>
-        `;
-    }
-
-    cell.container.appendChild(indicator);
+    // Fill the entire cell with the gradient
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
 // Draw smooth blend at position
@@ -270,7 +288,7 @@ function drawBlend(cell, x, y) {
     };
 
     // Blend the current color with target color (smooth transition)
-    const blendFactor = 0.15; // Lower value = smoother, more gradual blending
+    const blendFactor = 0.4; // Higher value = faster, more immediate blending
     const blendedColor = {
         r: Math.round(currentColor.r * (1 - blendFactor) + targetColor.r * blendFactor),
         g: Math.round(currentColor.g * (1 - blendFactor) + targetColor.g * blendFactor),
@@ -309,12 +327,6 @@ function clearAllCells() {
         cell.color1 = null;
         cell.color2 = null;
         cell.container.classList.remove('active');
-
-        // Remove color indicators
-        const indicator = cell.container.querySelector('.color-indicator');
-        if (indicator) {
-            indicator.remove();
-        }
     });
     currentPaletteCell = null;
 }

@@ -40,6 +40,17 @@
             <!-- 3x3 Grid Section -->
             <div class="grid-section">
                 <h2>Color Palette</h2>
+
+                <!-- Mode Toggle -->
+                <div class="mode-toggle">
+                    <button id="pickingMode" class="mode-btn active">
+                        🎨 Color Picking Mode
+                    </button>
+                    <button id="blendingMode" class="mode-btn">
+                        🖌️ Blending Mode
+                    </button>
+                </div>
+
                 <div class="palette-grid" id="paletteGrid">
                     <!-- 3x3 grid cells will be generated here -->
                 </div>
@@ -56,10 +67,11 @@
             <ol>
                 <li>Upload an image using the file button</li>
                 <li>Click on the image to pick colors with the eyedropper</li>
-                <li>Click on a palette cell once to set the FIRST color</li>
-                <li>Pick another color and click the same cell to set the SECOND color</li>
-                <li>Once both colors are set, click and drag within the cell to blend them smoothly</li>
-                <li>The blending transitions from left color to right color as you drag across</li>
+                <li><strong>In Color Picking Mode:</strong> Click a cell once to set the FIRST color, then pick another color and click again to set the SECOND color</li>
+                <li><strong>Switch to Blending Mode</strong> using the mode toggle buttons</li>
+                <li><strong>In Blending Mode:</strong> Click a cell to fill it with a full gradient, OR drag your mouse to paint/blend</li>
+                <li>The gradient transitions smoothly from left (color 1) to right (color 2)</li>
+                <li>All blending is permanent - your work is saved to the canvas!</li>
                 <li>Save or export your color palette when done</li>
             </ol>
         </div>
