@@ -5,6 +5,17 @@ let imageCanvas = null;
 let imageCtx = null;
 let paletteCells = [];
 let currentMode = 'picking'; // 'picking' or 'blending'
+let paletteType = 'manual'; // 'manual' or 'aesthetic'
+
+// Aesthetic palette corner indices
+const AESTHETIC_CORNERS = [0, 2, 6, 8]; // top-left, top-right, bottom-left, bottom-right
+const AESTHETIC_EDGES = {
+    1: [0, 2],    // top edge: corners 0 and 2
+    3: [0, 6],    // left edge: corners 0 and 6
+    5: [2, 8],    // right edge: corners 2 and 8
+    7: [6, 8]     // bottom edge: corners 6 and 8
+};
+const AESTHETIC_CENTER = 4; // center cell gets all 4 corners
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -12,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initializePaletteGrid();
     setupEventListeners();
     setupModeToggle();
+    setupPaletteTypeToggle();
 });
 
 // Initialize the image canvas for eyedropper
@@ -51,6 +63,26 @@ function initializePaletteGrid() {
 
         setupPaletteCellEvents(paletteCells[i], i);
     }
+}
+
+// Setup palette type toggle
+function setupPaletteTypeToggle() {
+    const manualBtn = document.getElementById('manualPalette');
+    const aestheticBtn = document.getElementById('aestheticPalette');
+
+    manualBtn.addEventListener('click', () => {
+        paletteType = 'manual';
+        manualBtn.classList.add('active');
+        aestheticBtn.classList.remove('active');
+        clearAllCells(); // Reset when switching modes
+    });
+
+    aestheticBtn.addEventListener('click', () => {
+        paletteType = 'aesthetic';
+        aestheticBtn.classList.add('active');
+        manualBtn.classList.remove('active');
+        clearAllCells(); // Reset when switching modes
+    });
 }
 
 // Setup mode toggle
@@ -164,38 +196,54 @@ function rgbToHex(r, g, b) {
 function setupPaletteCellEvents(cell, index) {
     const { container, canvas, ctx } = cell;
 
-    // Click handler - mode dependent
+    // Click handler - mode and palette type dependent
     container.addEventListener('click', (e) => {
-        // PICKING MODE: Set colors
+        // PICKING MODE
         if (currentMode === 'picking') {
             if (!selectedColor) {
                 alert('Please select a color from the image first!');
                 return;
             }
 
-            // If no colors set yet, set color1
-            if (!cell.color1) {
+            // AESTHETIC PALETTE MODE
+            if (paletteType === 'aesthetic') {
+                // Only allow clicking on corner cells
+                if (!AESTHETIC_CORNERS.includes(index)) {
+                    alert('In Aesthetic Palette mode, only click on corner cells! Edge and center cells auto-fill.');
+                    return;
+                }
+
+                // Set the corner color
                 cell.color1 = { ...selectedColor };
-                // Fill entire cell with color1
                 ctx.fillStyle = `rgb(${cell.color1.r}, ${cell.color1.g}, ${cell.color1.b})`;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                setActiveCell(index);
+
+                // Auto-fill all connected cells
+                updateAestheticPalette();
             }
-            // If color1 exists but not color2, set color2
-            else if (!cell.color2) {
-                cell.color2 = { ...selectedColor };
-                // Fill right half with color2
-                ctx.fillStyle = `rgb(${cell.color2.r}, ${cell.color2.g}, ${cell.color2.b})`;
-                ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
-            }
-            // If both colors exist, replace color2 with new selection
+            // MANUAL PALETTE MODE
             else {
-                cell.color2 = { ...selectedColor };
-                // Redraw: left half = color1, right half = color2
-                ctx.fillStyle = `rgb(${cell.color1.r}, ${cell.color1.g}, ${cell.color1.b})`;
-                ctx.fillRect(0, 0, canvas.width / 2, canvas.height);
-                ctx.fillStyle = `rgb(${cell.color2.r}, ${cell.color2.g}, ${cell.color2.b})`;
-                ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
+                // If no colors set yet, set color1
+                if (!cell.color1) {
+                    cell.color1 = { ...selectedColor };
+                    ctx.fillStyle = `rgb(${cell.color1.r}, ${cell.color1.g}, ${cell.color1.b})`;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    setActiveCell(index);
+                }
+                // If color1 exists but not color2, set color2
+                else if (!cell.color2) {
+                    cell.color2 = { ...selectedColor };
+                    ctx.fillStyle = `rgb(${cell.color2.r}, ${cell.color2.g}, ${cell.color2.b})`;
+                    ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
+                }
+                // If both colors exist, replace color2 with new selection
+                else {
+                    cell.color2 = { ...selectedColor };
+                    ctx.fillStyle = `rgb(${cell.color1.r}, ${cell.color1.g}, ${cell.color1.b})`;
+                    ctx.fillRect(0, 0, canvas.width / 2, canvas.height);
+                    ctx.fillStyle = `rgb(${cell.color2.r}, ${cell.color2.g}, ${cell.color2.b})`;
+                    ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
+                }
             }
         }
         // BLENDING MODE: Do nothing on click, only drag to blend
@@ -242,6 +290,67 @@ function setupPaletteCellEvents(cell, index) {
     });
 }
 
+// Update aesthetic palette - auto-fill edge and center cells
+function updateAestheticPalette() {
+    // Update edge cells (each gets 2 adjacent corner colors)
+    Object.keys(AESTHETIC_EDGES).forEach(edgeIndex => {
+        const index = parseInt(edgeIndex);
+        const [corner1Index, corner2Index] = AESTHETIC_EDGES[edgeIndex];
+        const corner1 = paletteCells[corner1Index];
+        const corner2 = paletteCells[corner2Index];
+        const edgeCell = paletteCells[index];
+
+        // Only fill if both corners have colors
+        if (corner1.color1 && corner2.color1) {
+            edgeCell.color1 = { ...corner1.color1 };
+            edgeCell.color2 = { ...corner2.color1 };
+
+            // Draw left half with corner1, right half with corner2
+            const { ctx, canvas } = edgeCell;
+            ctx.fillStyle = `rgb(${edgeCell.color1.r}, ${edgeCell.color1.g}, ${edgeCell.color1.b})`;
+            ctx.fillRect(0, 0, canvas.width / 2, canvas.height);
+            ctx.fillStyle = `rgb(${edgeCell.color2.r}, ${edgeCell.color2.g}, ${edgeCell.color2.b})`;
+            ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
+        }
+    });
+
+    // Update center cell (gets all 4 corner colors)
+    const centerCell = paletteCells[AESTHETIC_CENTER];
+    const allCornersHaveColors = AESTHETIC_CORNERS.every(idx => paletteCells[idx].color1);
+
+    if (allCornersHaveColors) {
+        // Store all 4 colors in the center cell
+        const cornerColors = AESTHETIC_CORNERS.map(idx => paletteCells[idx].color1);
+        centerCell.color1 = { ...cornerColors[0] }; // top-left
+        centerCell.color2 = { ...cornerColors[1] }; // top-right
+        // Store additional colors for the center cell
+        centerCell.color3 = { ...cornerColors[2] }; // bottom-left
+        centerCell.color4 = { ...cornerColors[3] }; // bottom-right
+        centerCell.hasAllFourColors = true; // Flag to indicate this cell has 4 colors
+
+        // Draw a 2x2 grid with all 4 colors
+        const { ctx, canvas } = centerCell;
+        const halfW = canvas.width / 2;
+        const halfH = canvas.height / 2;
+
+        // Top-left corner color (index 0)
+        ctx.fillStyle = `rgb(${cornerColors[0].r}, ${cornerColors[0].g}, ${cornerColors[0].b})`;
+        ctx.fillRect(0, 0, halfW, halfH);
+
+        // Top-right corner color (index 2)
+        ctx.fillStyle = `rgb(${cornerColors[1].r}, ${cornerColors[1].g}, ${cornerColors[1].b})`;
+        ctx.fillRect(halfW, 0, halfW, halfH);
+
+        // Bottom-left corner color (index 6)
+        ctx.fillStyle = `rgb(${cornerColors[2].r}, ${cornerColors[2].g}, ${cornerColors[2].b})`;
+        ctx.fillRect(0, halfH, halfW, halfH);
+
+        // Bottom-right corner color (index 8)
+        ctx.fillStyle = `rgb(${cornerColors[3].r}, ${cornerColors[3].g}, ${cornerColors[3].b})`;
+        ctx.fillRect(halfW, halfH, halfW, halfH);
+    }
+}
+
 // Draw blend - mixes the two colors together where you drag
 function drawBlend(cell, x, y) {
     if (!cell.color1 || !cell.color2) return;
@@ -263,27 +372,44 @@ function drawBlend(cell, x, y) {
         b: currentPixel[2]
     };
 
-    // Calculate mixed color: blend current color with both cell colors
-    // This creates a true mixing effect
     let mixedColor;
 
-    // If current color is close to color1, mix towards color2
-    // If current color is close to color2, mix towards color1
-    // Otherwise, mix both colors together
+    // CENTER CELL WITH 4 COLORS
+    if (cell.hasAllFourColors) {
+        // Blend all 4 colors together based on position
+        // Calculate which quadrant we're in and mix all colors proportionally
+        const xRatio = x / canvas.width;   // 0 to 1, left to right
+        const yRatio = y / canvas.height;  // 0 to 1, top to bottom
 
-    const dist1 = colorDistance(currentColor, cell.color1);
-    const dist2 = colorDistance(currentColor, cell.color2);
+        // Bilinear interpolation of all 4 colors
+        // Top row: blend color1 (TL) and color2 (TR)
+        const topColor = mixColors(cell.color1, cell.color2, xRatio);
 
-    if (dist1 < 30) {
-        // Close to color1, mix with color2
-        mixedColor = mixColors(currentColor, cell.color2, 0.3);
-    } else if (dist2 < 30) {
-        // Close to color2, mix with color1
-        mixedColor = mixColors(currentColor, cell.color1, 0.3);
-    } else {
-        // In between or neutral, mix with both
-        const temp = mixColors(cell.color1, cell.color2, 0.5);
-        mixedColor = mixColors(currentColor, temp, 0.3);
+        // Bottom row: blend color3 (BL) and color4 (BR)
+        const bottomColor = mixColors(cell.color3, cell.color4, xRatio);
+
+        // Final: blend top and bottom based on y position
+        const targetColor = mixColors(topColor, bottomColor, yRatio);
+
+        // Mix current color with target
+        mixedColor = mixColors(currentColor, targetColor, 0.3);
+    }
+    // NORMAL 2-COLOR CELL
+    else {
+        const dist1 = colorDistance(currentColor, cell.color1);
+        const dist2 = colorDistance(currentColor, cell.color2);
+
+        if (dist1 < 30) {
+            // Close to color1, mix with color2
+            mixedColor = mixColors(currentColor, cell.color2, 0.3);
+        } else if (dist2 < 30) {
+            // Close to color2, mix with color1
+            mixedColor = mixColors(currentColor, cell.color1, 0.3);
+        } else {
+            // In between or neutral, mix with both
+            const temp = mixColors(cell.color1, cell.color2, 0.5);
+            mixedColor = mixColors(currentColor, temp, 0.3);
+        }
     }
 
     // Paint with solid color (no gradient brush)
@@ -324,13 +450,17 @@ function setActiveCell(index) {
 
 // Clear all cells
 function clearAllCells() {
-    if (!confirm('Are you sure you want to clear all palette cells?')) return;
+    if (paletteType === 'aesthetic' && !confirm('Are you sure you want to clear all palette cells?')) return;
+    if (paletteType === 'manual' && !confirm('Are you sure you want to clear all palette cells?')) return;
 
     paletteCells.forEach(cell => {
         cell.ctx.fillStyle = 'white';
         cell.ctx.fillRect(0, 0, cell.canvas.width, cell.canvas.height);
         cell.color1 = null;
         cell.color2 = null;
+        cell.color3 = null;
+        cell.color4 = null;
+        cell.hasAllFourColors = false;
         cell.container.classList.remove('active');
     });
     currentPaletteCell = null;
