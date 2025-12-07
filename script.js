@@ -356,64 +356,31 @@ function drawBlend(cell, x, y) {
     if (!cell.color1 || !cell.color2) return;
 
     const { ctx, canvas } = cell;
-    const brushSize = 40;
+    const brushSize = 50;
 
-    // Get the current pixel color at brush position
-    const imageData = ctx.getImageData(
-        Math.max(0, Math.floor(x)),
-        Math.max(0, Math.floor(y)),
-        1,
-        1
-    );
-    const currentPixel = imageData.data;
-    const currentColor = {
-        r: currentPixel[0],
-        g: currentPixel[1],
-        b: currentPixel[2]
-    };
+    let targetColor;
 
-    let mixedColor;
-
-    // CENTER CELL WITH 4 COLORS
+    // CENTER CELL WITH 4 COLORS - calculate the median/center color of all 4
     if (cell.hasAllFourColors) {
-        // Blend all 4 colors together based on position
-        // Calculate which quadrant we're in and mix all colors proportionally
-        const xRatio = x / canvas.width;   // 0 to 1, left to right
-        const yRatio = y / canvas.height;  // 0 to 1, top to bottom
-
-        // Bilinear interpolation of all 4 colors
-        // Top row: blend color1 (TL) and color2 (TR)
-        const topColor = mixColors(cell.color1, cell.color2, xRatio);
-
-        // Bottom row: blend color3 (BL) and color4 (BR)
-        const bottomColor = mixColors(cell.color3, cell.color4, xRatio);
-
-        // Final: blend top and bottom based on y position
-        const targetColor = mixColors(topColor, bottomColor, yRatio);
-
-        // Mix current color with target
-        mixedColor = mixColors(currentColor, targetColor, 0.3);
+        // Simple average of all 4 colors for clean, solid blending
+        targetColor = {
+            r: Math.round((cell.color1.r + cell.color2.r + cell.color3.r + cell.color4.r) / 4),
+            g: Math.round((cell.color1.g + cell.color2.g + cell.color3.g + cell.color4.g) / 4),
+            b: Math.round((cell.color1.b + cell.color2.b + cell.color3.b + cell.color4.b) / 4)
+        };
     }
-    // NORMAL 2-COLOR CELL
+    // NORMAL 2-COLOR CELL - calculate the median/center color of both
     else {
-        const dist1 = colorDistance(currentColor, cell.color1);
-        const dist2 = colorDistance(currentColor, cell.color2);
-
-        if (dist1 < 30) {
-            // Close to color1, mix with color2
-            mixedColor = mixColors(currentColor, cell.color2, 0.3);
-        } else if (dist2 < 30) {
-            // Close to color2, mix with color1
-            mixedColor = mixColors(currentColor, cell.color1, 0.3);
-        } else {
-            // In between or neutral, mix with both
-            const temp = mixColors(cell.color1, cell.color2, 0.5);
-            mixedColor = mixColors(currentColor, temp, 0.3);
-        }
+        // Simple average of both colors for clean, solid blending
+        targetColor = {
+            r: Math.round((cell.color1.r + cell.color2.r) / 2),
+            g: Math.round((cell.color1.g + cell.color2.g) / 2),
+            b: Math.round((cell.color1.b + cell.color2.b) / 2)
+        };
     }
 
-    // Paint with solid color (no gradient brush)
-    ctx.fillStyle = `rgb(${mixedColor.r}, ${mixedColor.g}, ${mixedColor.b})`;
+    // Paint with solid color (no smudging, no gradual mixing)
+    ctx.fillStyle = `rgb(${targetColor.r}, ${targetColor.g}, ${targetColor.b})`;
     ctx.beginPath();
     ctx.arc(x, y, brushSize, 0, Math.PI * 2);
     ctx.fill();
