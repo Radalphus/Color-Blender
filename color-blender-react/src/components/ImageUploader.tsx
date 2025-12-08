@@ -65,7 +65,7 @@ export function ImageUploader({ onColorPicked, selectedColor }: ImageUploaderPro
     const canvasY = Math.floor(y * scaleY);
 
     const imageData = ctx.getImageData(canvasX, canvasY, 1, 1);
-    const color = getColorFromImageData(imageData, 0, 0);
+    const color = getColorFromImageData(imageData);
     onColorPicked(color);
   };
 

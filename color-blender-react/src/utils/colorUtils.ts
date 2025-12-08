@@ -27,9 +27,7 @@ export function colorToRgbString(color: Color): string {
 }
 
 export function getColorFromImageData(
-  imageData: ImageData,
-  x: number,
-  y: number
+  imageData: ImageData
 ): Color {
   const pixel = imageData.data;
   return {

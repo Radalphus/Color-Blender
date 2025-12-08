@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   PaletteCell as PaletteCellType,
   Color,
@@ -117,7 +117,7 @@ export function PaletteGrid({ selectedColor, mode, paletteType }: PaletteGridPro
             mode={mode}
             paletteType={paletteType}
             selectedColor={selectedColor}
-            isCornerCell={AESTHETIC_CORNERS.includes(index)}
+            isCornerCell={AESTHETIC_CORNERS.includes(index as 0 | 2 | 6 | 8)}
             onCellUpdate={handleCellUpdate}
             onCanvasRef={handleCanvasRef}
           />
