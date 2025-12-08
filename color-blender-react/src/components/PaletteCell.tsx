@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { PaletteCell as PaletteCellType, Color, Mode, PaletteType } from '../types';
+import { PaletteCell as PaletteCellType, Color, PaletteType } from '../types';
 import {
   fillCellWithColor,
   fillCellWithTwoColors,
@@ -11,7 +11,6 @@ import {
 interface PaletteCellProps {
   cell: PaletteCellType;
   index: number;
-  mode: Mode;
   paletteType: PaletteType;
   selectedColor: Color | null;
   isCornerCell: boolean;
@@ -22,7 +21,6 @@ interface PaletteCellProps {
 export function PaletteCell({
   cell,
   index,
-  mode,
   paletteType,
   selectedColor,
   isCornerCell,
@@ -31,6 +29,7 @@ export function PaletteCell({
 }: PaletteCellProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [dragStarted, setDragStarted] = useState(false);
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -57,39 +56,75 @@ export function PaletteCell({
     }
   }, [cell]);
 
-  const handleClick = () => {
-    if (mode === 'picking') {
-      if (!selectedColor) {
-        alert('Please select a color from the image first!');
-        return;
-      }
+  const handleCellClick = () => {
+    // Only trigger color picking if we didn't drag
+    if (dragStarted) return;
 
-      if (paletteType === 'aesthetic') {
-        if (!isCornerCell) {
-          alert('In Aesthetic Palette mode, only click on corner cells! Edge and center cells auto-fill.');
+    // In aesthetic mode, non-corner cells can't be clicked to add colors
+    // But we don't show an alert - just do nothing (allows blending)
+    if (paletteType === 'aesthetic' && !isCornerCell) {
+      return;
+    }
+
+    if (!selectedColor) {
+      alert('Please select a color from the image first!');
+      return;
+    }
+
+    if (paletteType === 'aesthetic') {
+      const updatedCell: PaletteCellType = {
+        ...cell,
+        color1: { ...selectedColor }
+      };
+      onCellUpdate(index, updatedCell);
+    } else {
+      // Manual palette mode
+      // If cell is empty, add first color
+      if (!cell.color1) {
+        onCellUpdate(index, { ...cell, color1: { ...selectedColor } });
+      }
+      // If only has first color, add second color
+      else if (!cell.color2) {
+        // Check if the new color is the same as color1
+        const isSameColor =
+          cell.color1.r === selectedColor.r &&
+          cell.color1.g === selectedColor.g &&
+          cell.color1.b === selectedColor.b;
+
+        if (isSameColor) {
+          alert('Please select a different color! Both colors cannot be the same.');
           return;
         }
 
-        const updatedCell: PaletteCellType = {
-          ...cell,
-          color1: { ...selectedColor }
-        };
-        onCellUpdate(index, updatedCell);
-      } else {
-        // Manual palette mode
-        if (!cell.color1) {
-          onCellUpdate(index, { ...cell, color1: { ...selectedColor } });
-        } else if (!cell.color2) {
-          onCellUpdate(index, { ...cell, color2: { ...selectedColor } });
-        } else {
-          onCellUpdate(index, { ...cell, color2: { ...selectedColor } });
-        }
+        onCellUpdate(index, { ...cell, color2: { ...selectedColor } });
       }
-    } else if (mode === 'blending') {
-      if (!cell.color1 || !cell.color2) {
-        alert('Please set both colors first (switch to Color Picking Mode)!');
+      // If both colors exist (cell is complete/blended), do nothing on single click
+      // User must double-click to reset
+    }
+  };
+
+  const handleCellDoubleClick = () => {
+    // Double-click always resets and starts fresh with the selected color
+    if (!selectedColor) {
+      alert('Please select a color from the image first!');
+      return;
+    }
+
+    if (paletteType === 'aesthetic') {
+      if (!isCornerCell) {
+        alert('In Aesthetic Palette mode, you can only reset corner cells! Edge and center cells are auto-filled from corners.');
+        return;
       }
     }
+
+    // Reset and start fresh with new color
+    onCellUpdate(index, {
+      color1: { ...selectedColor },
+      color2: null,
+      color3: null,
+      color4: null,
+      hasAllFourColors: false
+    });
   };
 
   const getMousePos = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -114,20 +149,26 @@ export function PaletteCell({
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (mode !== 'blending' || !cell.color1 || !cell.color2) return;
+    setDragStarted(false);
 
-    setIsDrawing(true);
-    const pos = getMousePos(e);
-    if (pos && canvasRef.current) {
-      const ctx = canvasRef.current.getContext('2d');
-      if (ctx) {
-        drawBlendedColor(ctx, pos.x, pos.y, cell);
+    // If cell has 2+ colors, allow blending
+    if (cell.color1 && cell.color2) {
+      setIsDrawing(true);
+      const pos = getMousePos(e);
+      if (pos && canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d');
+        if (ctx) {
+          drawBlendedColor(ctx, pos.x, pos.y, cell);
+        }
       }
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || mode !== 'blending') return;
+    if (!isDrawing) return;
+
+    // Mark that we've dragged
+    setDragStarted(true);
 
     const pos = getMousePos(e);
     if (pos && canvasRef.current) {
@@ -140,26 +181,33 @@ export function PaletteCell({
 
   const handleMouseUp = () => {
     setIsDrawing(false);
+    // Reset drag flag after a short delay to allow click handler to check it
+    setTimeout(() => setDragStarted(false), 10);
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (mode !== 'blending' || !cell.color1 || !cell.color2) return;
+    setDragStarted(false);
 
-    e.preventDefault();
-    setIsDrawing(true);
-    const pos = getMousePos(e);
-    if (pos && canvasRef.current) {
-      const ctx = canvasRef.current.getContext('2d');
-      if (ctx) {
-        drawBlendedColor(ctx, pos.x, pos.y, cell);
+    // If cell has 2+ colors, allow blending
+    if (cell.color1 && cell.color2) {
+      e.preventDefault();
+      setIsDrawing(true);
+      const pos = getMousePos(e);
+      if (pos && canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d');
+        if (ctx) {
+          drawBlendedColor(ctx, pos.x, pos.y, cell);
+        }
       }
     }
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || mode !== 'blending') return;
+    if (!isDrawing) return;
 
+    setDragStarted(true);
     e.preventDefault();
+
     const pos = getMousePos(e);
     if (pos && canvasRef.current) {
       const ctx = canvasRef.current.getContext('2d');
@@ -171,10 +219,11 @@ export function PaletteCell({
 
   const handleTouchEnd = () => {
     setIsDrawing(false);
+    setTimeout(() => setDragStarted(false), 10);
   };
 
   return (
-    <div className="palette-cell" onClick={handleClick}>
+    <div className="palette-cell" onClick={handleCellClick} onDoubleClick={handleCellDoubleClick}>
       <canvas
         ref={canvasRef}
         width={200}

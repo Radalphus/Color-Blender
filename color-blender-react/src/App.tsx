@@ -1,19 +1,13 @@
 import { useState } from 'react';
-import { Color, Mode, PaletteType } from './types';
+import { Color, PaletteType } from './types';
 import { ImageUploader } from './components/ImageUploader';
 import { PaletteGrid } from './components/PaletteGrid';
-import { ModeToggle } from './components/ModeToggle';
 import { Instructions } from './components/Instructions';
 import './App.css';
 
 function App() {
   const [selectedColor, setSelectedColor] = useState<Color | null>(null);
-  const [mode, setMode] = useState<Mode>('picking');
   const [paletteType, setPaletteType] = useState<PaletteType>('manual');
-
-  const handlePaletteTypeChange = (newType: PaletteType) => {
-    setPaletteType(newType);
-  };
 
   return (
     <div className="container">
@@ -29,15 +23,22 @@ function App() {
         />
 
         <div className="grid-section-wrapper">
-          <ModeToggle
-            mode={mode}
-            paletteType={paletteType}
-            onModeChange={setMode}
-            onPaletteTypeChange={handlePaletteTypeChange}
-          />
+          <div className="palette-type-toggle">
+            <button
+              className={`palette-type-btn ${paletteType === 'manual' ? 'active' : ''}`}
+              onClick={() => setPaletteType('manual')}
+            >
+              ⚙️ Manual Palette
+            </button>
+            <button
+              className={`palette-type-btn ${paletteType === 'aesthetic' ? 'active' : ''}`}
+              onClick={() => setPaletteType('aesthetic')}
+            >
+              ✨ Aesthetic Palette
+            </button>
+          </div>
           <PaletteGrid
             selectedColor={selectedColor}
-            mode={mode}
             paletteType={paletteType}
           />
         </div>

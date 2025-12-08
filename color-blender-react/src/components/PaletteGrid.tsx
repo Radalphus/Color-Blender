@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import {
   PaletteCell as PaletteCellType,
   Color,
-  Mode,
   PaletteType,
   AESTHETIC_CORNERS,
   AESTHETIC_EDGES,
@@ -13,11 +12,10 @@ import { exportPaletteAsImage, savePaletteAsJson } from '../utils/exportUtils';
 
 interface PaletteGridProps {
   selectedColor: Color | null;
-  mode: Mode;
   paletteType: PaletteType;
 }
 
-export function PaletteGrid({ selectedColor, mode, paletteType }: PaletteGridProps) {
+export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
   const [cells, setCells] = useState<PaletteCellType[]>(
     Array(9).fill(null).map(() => ({
       color1: null,
@@ -114,7 +112,6 @@ export function PaletteGrid({ selectedColor, mode, paletteType }: PaletteGridPro
             key={index}
             cell={cell}
             index={index}
-            mode={mode}
             paletteType={paletteType}
             selectedColor={selectedColor}
             isCornerCell={AESTHETIC_CORNERS.includes(index as 0 | 2 | 6 | 8)}
