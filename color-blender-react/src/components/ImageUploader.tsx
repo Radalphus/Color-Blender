@@ -1,4 +1,4 @@
-import { useRef, ChangeEvent } from 'react';
+import { useRef, ChangeEvent, useState } from 'react';
 import { Color } from '../types';
 import { getColorFromImageData } from '../utils/colorUtils';
 
@@ -9,6 +9,7 @@ interface ImageUploaderProps {
 
 export function ImageUploader({ onColorPicked, selectedColor }: ImageUploaderProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [hoverColor, setHoverColor] = useState<Color | null>(null);
 
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -69,6 +70,34 @@ export function ImageUploader({ onColorPicked, selectedColor }: ImageUploaderPro
     onColorPicked(color);
   };
 
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const canvasX = Math.floor(x * scaleX);
+    const canvasY = Math.floor(y * scaleY);
+
+    // Check if coordinates are within canvas bounds
+    if (canvasX >= 0 && canvasX < canvas.width && canvasY >= 0 && canvasY < canvas.height) {
+      const imageData = ctx.getImageData(canvasX, canvasY, 1, 1);
+      const color = getColorFromImageData(imageData);
+      setHoverColor(color);
+    }
+  };
+
+  const handleCanvasMouseLeave = () => {
+    setHoverColor(null);
+  };
+
   return (
     <div className="image-section">
       <h2>Image & Color Picker</h2>
@@ -85,26 +114,35 @@ export function ImageUploader({ onColorPicked, selectedColor }: ImageUploaderPro
         </label>
       </div>
       <div className="canvas-container">
-        <canvas ref={canvasRef} onClick={handleCanvasClick} />
+        <canvas
+          ref={canvasRef}
+          onClick={handleCanvasClick}
+          onMouseMove={handleCanvasMouseMove}
+          onMouseLeave={handleCanvasMouseLeave}
+        />
       </div>
       <div className="selected-color-display">
         <div className="color-info">
           <div
             className="color-swatch"
             style={{
-              backgroundColor: selectedColor
+              backgroundColor: hoverColor
+                ? `rgb(${hoverColor.r}, ${hoverColor.g}, ${hoverColor.b})`
+                : selectedColor
                 ? `rgb(${selectedColor.r}, ${selectedColor.g}, ${selectedColor.b})`
                 : 'white'
             }}
           />
           <div className="color-values">
             <span>
-              {selectedColor
+              {hoverColor
+                ? `#${hoverColor.r.toString(16).padStart(2, '0')}${hoverColor.g.toString(16).padStart(2, '0')}${hoverColor.b.toString(16).padStart(2, '0')}`
+                : selectedColor
                 ? `#${selectedColor.r.toString(16).padStart(2, '0')}${selectedColor.g.toString(16).padStart(2, '0')}${selectedColor.b.toString(16).padStart(2, '0')}`
                 : 'No color selected'}
             </span>
-            {selectedColor && (
-              <span>RGB({selectedColor.r}, {selectedColor.g}, {selectedColor.b})</span>
+            {(hoverColor || selectedColor) && (
+              <span>RGB({(hoverColor || selectedColor)!.r}, {(hoverColor || selectedColor)!.g}, {(hoverColor || selectedColor)!.b})</span>
             )}
           </div>
         </div>
