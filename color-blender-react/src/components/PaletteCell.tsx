@@ -14,7 +14,7 @@ interface PaletteCellProps {
   paletteType: PaletteType;
   selectedColor: Color | null;
   isCornerCell: boolean;
-  onCellUpdate: (index: number, cell: PaletteCellType) => void;
+  onCellUpdate: (index: number, cell: PaletteCellType, shouldSaveHistory?: boolean, skipAestheticUpdate?: boolean) => void;
   onCanvasRef: (index: number, canvas: HTMLCanvasElement | null) => void;
 }
 
@@ -29,6 +29,7 @@ export function PaletteCell({
 }: PaletteCellProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const hasAutoFilledRef = useRef(false);
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -165,6 +166,7 @@ export function PaletteCell({
     // If cell has 2+ colors, allow blending
     if (cell.color1 && cell.color2) {
       setIsDrawing(true);
+      hasAutoFilledRef.current = false; // Reset flag when starting new blend
       const pos = getMousePos(e);
       if (pos && canvasRef.current) {
         const ctx = canvasRef.current.getContext('2d');
@@ -188,7 +190,69 @@ export function PaletteCell({
   };
 
   const handleMouseUp = () => {
-    setIsDrawing(false);
+    if (isDrawing) {
+      setIsDrawing(false);
+
+      // Check if canvas is 80% blended (most pixels are the same color)
+      const canvas = canvasRef.current;
+      if (canvas && cell.color1 && cell.color2) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const pixels = imageData.data;
+
+          // Calculate average color of all pixels
+          let totalR = 0, totalG = 0, totalB = 0;
+          const pixelCount = pixels.length / 4;
+
+          for (let i = 0; i < pixels.length; i += 4) {
+            totalR += pixels[i];
+            totalG += pixels[i + 1];
+            totalB += pixels[i + 2];
+          }
+
+          const avgR = Math.round(totalR / pixelCount);
+          const avgG = Math.round(totalG / pixelCount);
+          const avgB = Math.round(totalB / pixelCount);
+
+          // Count how many pixels are close to the average (within tolerance)
+          const tolerance = 30; // Color similarity tolerance
+          let similarPixels = 0;
+
+          for (let i = 0; i < pixels.length; i += 4) {
+            const diffR = Math.abs(pixels[i] - avgR);
+            const diffG = Math.abs(pixels[i + 1] - avgG);
+            const diffB = Math.abs(pixels[i + 2] - avgB);
+
+            if (diffR <= tolerance && diffG <= tolerance && diffB <= tolerance) {
+              similarPixels++;
+            }
+          }
+
+          const blendPercentage = (similarPixels / pixelCount) * 100;
+
+          // If 80% or more pixels are similar, auto-fill and save state
+          if (blendPercentage >= 80 && !hasAutoFilledRef.current) {
+            // Fill entire canvas with the average color
+            ctx.fillStyle = `rgb(${avgR}, ${avgG}, ${avgB})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Set flag to prevent duplicate saves
+            hasAutoFilledRef.current = true;
+
+            // Update cell data to reflect the blended color and save in one action
+            // Skip aesthetic update to prevent resetting edge/center cells
+            onCellUpdate(index, {
+              color1: { r: avgR, g: avgG, b: avgB },
+              color2: null,
+              color3: null,
+              color4: null,
+              hasAllFourColors: false
+            }, true, true); // shouldSaveHistory=true, skipAestheticUpdate=true
+          }
+        }
+      }
+    }
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
@@ -196,6 +260,7 @@ export function PaletteCell({
     if (cell.color1 && cell.color2) {
       e.preventDefault();
       setIsDrawing(true);
+      hasAutoFilledRef.current = false; // Reset flag when starting new blend
       const pos = getMousePos(e);
       if (pos && canvasRef.current) {
         const ctx = canvasRef.current.getContext('2d');
@@ -221,7 +286,69 @@ export function PaletteCell({
   };
 
   const handleTouchEnd = () => {
-    setIsDrawing(false);
+    if (isDrawing) {
+      setIsDrawing(false);
+
+      // Check if canvas is 80% blended (most pixels are the same color)
+      const canvas = canvasRef.current;
+      if (canvas && cell.color1 && cell.color2) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const pixels = imageData.data;
+
+          // Calculate average color of all pixels
+          let totalR = 0, totalG = 0, totalB = 0;
+          const pixelCount = pixels.length / 4;
+
+          for (let i = 0; i < pixels.length; i += 4) {
+            totalR += pixels[i];
+            totalG += pixels[i + 1];
+            totalB += pixels[i + 2];
+          }
+
+          const avgR = Math.round(totalR / pixelCount);
+          const avgG = Math.round(totalG / pixelCount);
+          const avgB = Math.round(totalB / pixelCount);
+
+          // Count how many pixels are close to the average (within tolerance)
+          const tolerance = 30; // Color similarity tolerance
+          let similarPixels = 0;
+
+          for (let i = 0; i < pixels.length; i += 4) {
+            const diffR = Math.abs(pixels[i] - avgR);
+            const diffG = Math.abs(pixels[i + 1] - avgG);
+            const diffB = Math.abs(pixels[i + 2] - avgB);
+
+            if (diffR <= tolerance && diffG <= tolerance && diffB <= tolerance) {
+              similarPixels++;
+            }
+          }
+
+          const blendPercentage = (similarPixels / pixelCount) * 100;
+
+          // If 80% or more pixels are similar, auto-fill and save state
+          if (blendPercentage >= 80 && !hasAutoFilledRef.current) {
+            // Fill entire canvas with the average color
+            ctx.fillStyle = `rgb(${avgR}, ${avgG}, ${avgB})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Set flag to prevent duplicate saves
+            hasAutoFilledRef.current = true;
+
+            // Update cell data to reflect the blended color and save in one action
+            // Skip aesthetic update to prevent resetting edge/center cells
+            onCellUpdate(index, {
+              color1: { r: avgR, g: avgG, b: avgB },
+              color2: null,
+              color3: null,
+              color4: null,
+              hasAllFourColors: false
+            }, true, true); // shouldSaveHistory=true, skipAestheticUpdate=true
+          }
+        }
+      }
+    }
   };
 
   return (

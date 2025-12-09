@@ -5,9 +5,9 @@ A web-based color blending application that allows users to upload images, pick 
 
 ---
 
-## Current Status: ✅ COMPLETE - Version 2.1 (React + TypeScript)
+## Current Status: ✅ COMPLETE - Version 2.2 (React + TypeScript)
 
-The application has been fully migrated to React + TypeScript with modular architecture and enhanced UX improvements!
+The application has been fully migrated to React + TypeScript with modular architecture, enhanced UX improvements, and full undo/redo support!
 
 ---
 
@@ -121,11 +121,21 @@ The application has been fully migrated to React + TypeScript with modular archi
 - [x] **GitHub Pages Deployment**: Configured and deployed to GitHub Pages
 - [x] **Vite Base Path**: Updated vite.config.ts for GitHub Pages compatibility
 
+### Phase 9: Undo/Redo System (v2.2) ✅
+- [x] **History Management**: Custom useHistory hook with state tracking
+- [x] **Smart State Saving**: Only saves on color addition and blend completion (not every click)
+- [x] **Keyboard Shortcuts**: Ctrl+Z for undo, Ctrl+Y (or Ctrl+Shift+Z) for redo
+- [x] **UI Buttons**: Undo/Redo buttons with disabled states
+- [x] **Canvas State Preservation**: Saves both cell data and canvas images
+- [x] **Initial State**: Saves blank state, allowing undo of first color addition
+- [x] **History Limit**: Maximum 20 states to prevent memory issues
+- [x] **Clear Grid Integration**: Resets history when clearing palette
+
 ---
 
 ## Technical Implementation Details
 
-### File Structure (v2.0 - React + TypeScript)
+### File Structure (v2.2 - React + TypeScript)
 ```
 Color-Blender/
 ├── color-blender-react/          # React application root
@@ -136,6 +146,8 @@ Color-Blender/
 │   │   │   ├── PaletteGrid.tsx
 │   │   │   ├── ModeToggle.tsx
 │   │   │   └── Instructions.tsx
+│   │   ├── hooks/               # Custom React hooks
+│   │   │   └── useHistory.ts    # Undo/redo state management
 │   │   ├── utils/               # Utility functions
 │   │   │   ├── colorUtils.ts
 │   │   │   ├── canvasUtils.ts
@@ -212,7 +224,7 @@ ctx.fill()
 ## Future Enhancement Ideas
 
 ### Priority: High 🔴
-- [ ] **Undo/Redo System**
+- [x] **Undo/Redo System** ✅ (Completed in v2.2)
   - Track canvas states for each cell
   - Implement history stack (max 20 steps)
   - Add keyboard shortcuts (Ctrl+Z, Ctrl+Y)
@@ -374,7 +386,19 @@ export default defineConfig({
 
 ## Version History
 
-### v2.1 - December 8, 2025 (Current)
+### v2.2 - December 8, 2025 (Current)
+**Undo/Redo System**
+- Implemented comprehensive undo/redo functionality
+- Custom useHistory hook for state management
+- Smart state saving (only on color add and blend complete)
+- Keyboard shortcuts: Ctrl+Z (undo), Ctrl+Y (redo)
+- UI buttons with disabled states
+- Preserves canvas images and cell data
+- Saves initial blank state for complete undo capability
+- Maximum 20 history states to manage memory
+- Integrated with clear grid function
+
+### v2.1 - December 8, 2025
 **UX Enhancements & GitHub Pages Deployment**
 - Removed separate picking/blending modes for more intuitive workflow
 - Added color preview on hover over image
@@ -479,7 +503,7 @@ Free to use and modify for personal and commercial projects.
 ---
 
 **Last Updated**: December 8, 2025
-**Current Version**: v2.1 - UX Enhancements & GitHub Pages Deployment
+**Current Version**: v2.2 - Undo/Redo System
 **Status**: Production Ready & Deployed ✅
 **Live on**: GitHub Pages
-**Next Milestone**: Implement undo/redo system or additional export features
+**Next Milestone**: Load saved palettes feature or palette library system

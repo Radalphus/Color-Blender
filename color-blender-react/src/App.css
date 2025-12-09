@@ -245,6 +245,12 @@ header p {
 /* Controls */
 .controls {
     display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.control-group {
+    display: flex;
     gap: 10px;
     flex-wrap: wrap;
 }
@@ -262,9 +268,16 @@ header p {
     min-width: 120px;
 }
 
-.btn:hover {
+.btn:hover:not(:disabled) {
     background: #f5f5f5;
     border-color: #999;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f0f0f0;
+    color: #999;
 }
 
 .btn-primary {
