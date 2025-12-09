@@ -5,9 +5,9 @@ A web-based color blending application that allows users to upload images, pick 
 
 ---
 
-## Current Status: ✅ COMPLETE - Version 2.0 (React + TypeScript)
+## Current Status: ✅ COMPLETE - Version 2.1 (React + TypeScript)
 
-The application has been fully migrated to React + TypeScript with modular architecture!
+The application has been fully migrated to React + TypeScript with modular architecture and enhanced UX improvements!
 
 ---
 
@@ -109,6 +109,18 @@ The application has been fully migrated to React + TypeScript with modular archi
 - [x] Created comprehensive README for React version
 - [x] Deleted vanilla HTML/CSS/JS files (kept only React version)
 
+### Phase 8: UX Enhancements & GitHub Pages Deployment (v2.1) ✅
+- [x] **Color Preview on Hover**: Hover over image shows color before picking
+- [x] **Unified Picking/Blending**: Removed separate modes - now more intuitive
+- [x] **Double-Click Color Adding**: Manual palette uses double-click to add colors
+- [x] **Selected Color Display**: Visual indicator showing currently selected color
+- [x] **Smart Aesthetic Reset**: Updating one corner only resets affected edges (not entire palette)
+- [x] **Combined Preview/Selection**: Preview and selected colors merged for less confusion
+- [x] **Mobile Hover Fix**: Fixed color hover to work correctly on mobile devices
+- [x] **Aesthetic Mode Error Messages**: Edges show error message when clicked but not filled
+- [x] **GitHub Pages Deployment**: Configured and deployed to GitHub Pages
+- [x] **Vite Base Path**: Updated vite.config.ts for GitHub Pages compatibility
+
 ---
 
 ## Technical Implementation Details
@@ -180,15 +192,19 @@ ctx.fill()
 - **Larger brush**: 50px radius for faster cell filling
 - **Permanent**: All changes written directly to canvas
 
-#### Mode System
-- **Color Picking Mode**: Click cells to add colors (no blending)
-- **Blending Mode**: Drag to blend colors (no color picking)
-- Prevents accidental color changes during blending
+#### Interaction System (v2.1+)
+- **Unified Interface**: No separate picking/blending modes (simplified from v2.0)
+- **Double-Click to Add**: Double-click cells to add colors in Manual mode
+- **Drag to Blend**: Click and drag to blend colors
+- **Smart Behavior**: Context-aware interaction based on cell state
+- **Color Preview**: Hover over image to preview color before selecting
 
-#### Aesthetic Palette Auto-Fill
+#### Aesthetic Palette Auto-Fill (v2.1+)
 - **Corner cells (0, 2, 6, 8)**: User sets ONE color each
 - **Edge cells (1, 3, 5, 7)**: Auto-filled with TWO colors from adjacent corners
 - **Center cell (4)**: Auto-filled with all FOUR corner colors in 2x2 grid
+- **Smart Reset (v2.1)**: Updating one corner only resets affected edges, not entire palette
+- **Error Messaging**: Clicking unfilled edge/center cells shows helpful error message
 - Automatic updates when any corner color changes
 
 ---
@@ -313,9 +329,9 @@ ctx.fill()
 
 ---
 
-## Deployment Options (v2.0)
+## Deployment Options (v2.1)
 
-### Option 1: Local Development (Current) ✅
+### Option 1: Local Development ✅
 1. Install Node.js from https://nodejs.org/
 2. Navigate to `color-blender-react/`
 3. Run `npm install`
@@ -326,18 +342,28 @@ ctx.fill()
 1. Run `npm run build` in `color-blender-react/`
 2. Deploy the `dist/` folder to any static hosting
 
-### Option 3: Netlify/Vercel (Recommended)
+### Option 3: GitHub Pages (DEPLOYED - Current) ✅
+**Live URL**: [Your GitHub Pages URL]
+1. Build: `npm run build`
+2. Deploy `dist/` folder to gh-pages branch
+3. Enable GitHub Pages in settings
+4. Update `vite.config.ts` with correct base path
+5. Automatic HTTPS and free hosting
+
+**Configuration in vite.config.ts:**
+```typescript
+export default defineConfig({
+  base: '/Color-Blender/', // or your repo name
+  plugins: [react()],
+})
+```
+
+### Option 4: Netlify/Vercel
 1. Connect GitHub repository
 2. Set build command: `npm run build`
 3. Set publish directory: `dist`
 4. Automatic deployments on push
 5. Free custom domain and HTTPS
-
-### Option 4: GitHub Pages
-1. Build: `npm run build`
-2. Deploy `dist/` folder to gh-pages branch
-3. Enable GitHub Pages in settings
-4. Get free `username.github.io/color-blender` URL
 
 ### Option 5: Mobile App (Future)
 1. Wrap with Capacitor
@@ -348,7 +374,20 @@ ctx.fill()
 
 ## Version History
 
-### v2.0 - December 7, 2025 (Current)
+### v2.1 - December 8, 2025 (Current)
+**UX Enhancements & GitHub Pages Deployment**
+- Removed separate picking/blending modes for more intuitive workflow
+- Added color preview on hover over image
+- Implemented double-click to add colors in Manual mode
+- Added selected color display indicator
+- Smart aesthetic palette reset (only affected edges update)
+- Combined preview and selection displays for clarity
+- Fixed mobile color hover functionality
+- Added error messages for unfilled aesthetic cells
+- Deployed to GitHub Pages with proper Vite configuration
+- Enhanced mobile experience
+
+### v2.0 - December 7, 2025
 **Major Migration: React + TypeScript**
 - Completely rewritten in React + TypeScript + Vite
 - Modular component architecture
@@ -408,15 +447,19 @@ npm run preview      # Preview production build
 - [x] Test eyedropper on different image sizes
 - [x] Test Manual Palette mode (2 colors per cell)
 - [x] Test Aesthetic Palette mode (corner auto-fill)
-- [x] Test Color Picking Mode (no blending)
-- [x] Test Blending Mode (no color picking)
+- [x] Test double-click color adding in Manual mode (v2.1)
+- [x] Test color preview on hover over image (v2.1)
+- [x] Test selected color display indicator (v2.1)
+- [x] Test smart aesthetic reset (v2.1)
 - [x] Test 4-color center cell blending
 - [x] Test clean solid blending (no smudging)
 - [x] Test save/export functionality
 - [x] Test on different browsers
 - [x] Test responsive design on mobile
 - [x] Test touch events on mobile devices
+- [x] Test mobile color hover (v2.1)
 - [x] Test with large images (memory handling)
+- [x] Test GitHub Pages deployment (v2.1)
 
 ---
 
@@ -435,7 +478,8 @@ Free to use and modify for personal and commercial projects.
 
 ---
 
-**Last Updated**: December 7, 2025
-**Current Version**: v2.0 - React + TypeScript Migration
-**Status**: Production Ready ✅
-**Next Milestone**: Deploy to production hosting (Netlify/Vercel)
+**Last Updated**: December 8, 2025
+**Current Version**: v2.1 - UX Enhancements & GitHub Pages Deployment
+**Status**: Production Ready & Deployed ✅
+**Live on**: GitHub Pages
+**Next Milestone**: Implement undo/redo system or additional export features
