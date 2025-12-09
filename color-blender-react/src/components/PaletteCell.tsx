@@ -29,7 +29,6 @@ export function PaletteCell({
 }: PaletteCellProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [dragStarted, setDragStarted] = useState(false);
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -57,30 +56,33 @@ export function PaletteCell({
   }, [cell]);
 
   const handleCellClick = () => {
-    // Only trigger color picking if we didn't drag
-    if (dragStarted) return;
+    // Single click does nothing - colors can only be added via double-click
+    // This allows single clicks to be reserved for blending (drag detection)
+    return;
+  };
 
-    // In aesthetic mode, non-corner cells can't be clicked to add colors
-    if (paletteType === 'aesthetic' && !isCornerCell) {
-      // If the cell is empty (not auto-filled yet), show helpful message
-      if (!cell.color1) {
-        alert('In Aesthetic Palette mode, only click on corner cells! Edge and center cells auto-fill.');
-      }
-      // If already filled, do nothing silently (allows blending)
-      return;
-    }
-
+  const handleCellDoubleClick = () => {
+    // Double-click adds colors in both modes
     if (!selectedColor) {
       alert('Please select a color from the image first!');
       return;
     }
 
     if (paletteType === 'aesthetic') {
-      const updatedCell: PaletteCellType = {
-        ...cell,
-        color1: { ...selectedColor }
-      };
-      onCellUpdate(index, updatedCell);
+      // In aesthetic mode, only corner cells can be set
+      if (!isCornerCell) {
+        alert('In Aesthetic Palette mode, only double-click on corner cells! Edge and center cells auto-fill.');
+        return;
+      }
+
+      // Corners only hold one color - always replace with the new color
+      onCellUpdate(index, {
+        color1: { ...selectedColor },
+        color2: null,
+        color3: null,
+        color4: null,
+        hasAllFourColors: false
+      });
     } else {
       // Manual palette mode
       // If cell is empty, add first color
@@ -102,33 +104,40 @@ export function PaletteCell({
 
         onCellUpdate(index, { ...cell, color2: { ...selectedColor } });
       }
-      // If both colors exist (cell is complete/blended), do nothing on single click
-      // User must double-click to reset
-    }
-  };
+      // If both colors exist, calculate average color from blended canvas
+      else {
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            // Get the entire canvas pixel data
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixels = imageData.data;
 
-  const handleCellDoubleClick = () => {
-    // Double-click always resets and starts fresh with the selected color
-    if (!selectedColor) {
-      alert('Please select a color from the image first!');
-      return;
-    }
+            // Calculate average color from all pixels
+            let totalR = 0, totalG = 0, totalB = 0;
+            const pixelCount = pixels.length / 4; // Each pixel has 4 values (RGBA)
 
-    if (paletteType === 'aesthetic') {
-      if (!isCornerCell) {
-        alert('In Aesthetic Palette mode, you can only reset corner cells! Edge and center cells are auto-filled from corners.');
-        return;
+            for (let i = 0; i < pixels.length; i += 4) {
+              totalR += pixels[i];
+              totalG += pixels[i + 1];
+              totalB += pixels[i + 2];
+            }
+
+            const avgR = Math.round(totalR / pixelCount);
+            const avgG = Math.round(totalG / pixelCount);
+            const avgB = Math.round(totalB / pixelCount);
+
+            // Blended color becomes color1, new color becomes color2
+            onCellUpdate(index, {
+              ...cell,
+              color1: { r: avgR, g: avgG, b: avgB },
+              color2: { ...selectedColor }
+            });
+          }
+        }
       }
     }
-
-    // Reset and start fresh with new color
-    onCellUpdate(index, {
-      color1: { ...selectedColor },
-      color2: null,
-      color3: null,
-      color4: null,
-      hasAllFourColors: false
-    });
   };
 
   const getMousePos = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -153,8 +162,6 @@ export function PaletteCell({
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    setDragStarted(false);
-
     // If cell has 2+ colors, allow blending
     if (cell.color1 && cell.color2) {
       setIsDrawing(true);
@@ -171,9 +178,6 @@ export function PaletteCell({
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return;
 
-    // Mark that we've dragged
-    setDragStarted(true);
-
     const pos = getMousePos(e);
     if (pos && canvasRef.current) {
       const ctx = canvasRef.current.getContext('2d');
@@ -185,13 +189,9 @@ export function PaletteCell({
 
   const handleMouseUp = () => {
     setIsDrawing(false);
-    // Reset drag flag after a short delay to allow click handler to check it
-    setTimeout(() => setDragStarted(false), 10);
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    setDragStarted(false);
-
     // If cell has 2+ colors, allow blending
     if (cell.color1 && cell.color2) {
       e.preventDefault();
@@ -209,7 +209,6 @@ export function PaletteCell({
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return;
 
-    setDragStarted(true);
     e.preventDefault();
 
     const pos = getMousePos(e);
@@ -223,7 +222,6 @@ export function PaletteCell({
 
   const handleTouchEnd = () => {
     setIsDrawing(false);
-    setTimeout(() => setDragStarted(false), 10);
   };
 
   return (
