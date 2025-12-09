@@ -61,8 +61,12 @@ export function PaletteCell({
     if (dragStarted) return;
 
     // In aesthetic mode, non-corner cells can't be clicked to add colors
-    // But we don't show an alert - just do nothing (allows blending)
     if (paletteType === 'aesthetic' && !isCornerCell) {
+      // If the cell is empty (not auto-filled yet), show helpful message
+      if (!cell.color1) {
+        alert('In Aesthetic Palette mode, only click on corner cells! Edge and center cells auto-fill.');
+      }
+      // If already filled, do nothing silently (allows blending)
       return;
     }
 
