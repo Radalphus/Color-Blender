@@ -10,6 +10,7 @@ interface ImageUploaderProps {
 export function ImageUploader({ onColorPicked, selectedColor }: ImageUploaderProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hoverColor, setHoverColor] = useState<Color | null>(null);
+  const [isUsingTouch, setIsUsingTouch] = useState(false);
 
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -99,6 +100,7 @@ export function ImageUploader({ onColorPicked, selectedColor }: ImageUploaderPro
   };
 
   const handleCanvasTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    setIsUsingTouch(true);
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -124,10 +126,15 @@ export function ImageUploader({ onColorPicked, selectedColor }: ImageUploaderPro
   };
 
   const handleCanvasTouchEnd = () => {
+    // On mobile, select the last color that was previewed (where finger lifted)
+    if (hoverColor) {
+      onColorPicked(hoverColor);
+    }
     setHoverColor(null);
   };
 
   const handleCanvasTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    setIsUsingTouch(true);
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -148,6 +155,7 @@ export function ImageUploader({ onColorPicked, selectedColor }: ImageUploaderPro
     if (canvasX >= 0 && canvasX < canvas.width && canvasY >= 0 && canvasY < canvas.height) {
       const imageData = ctx.getImageData(canvasX, canvasY, 1, 1);
       const color = getColorFromImageData(imageData);
+      // Just show preview on touch start
       setHoverColor(color);
     }
   };
@@ -180,7 +188,8 @@ export function ImageUploader({ onColorPicked, selectedColor }: ImageUploaderPro
         />
       </div>
       <div className="selected-color-display">
-        {hoverColor && (
+        {/* Desktop: Show separate Preview and Selected */}
+        {!isUsingTouch && hoverColor && (
           <div className="color-info">
             <div
               className="color-swatch"
@@ -197,24 +206,30 @@ export function ImageUploader({ onColorPicked, selectedColor }: ImageUploaderPro
             </div>
           </div>
         )}
+
+        {/* Mobile: Show live-updating Selected Color */}
         <div className="color-info">
           <div
             className="color-swatch"
             style={{
-              backgroundColor: selectedColor
+              backgroundColor: (isUsingTouch && hoverColor)
+                ? `rgb(${hoverColor.r}, ${hoverColor.g}, ${hoverColor.b})`
+                : selectedColor
                 ? `rgb(${selectedColor.r}, ${selectedColor.g}, ${selectedColor.b})`
                 : 'white'
             }}
           />
           <div className="color-values">
-            <span className="color-label">Selected:</span>
+            <span className="color-label">Selected Color:</span>
             <span>
-              {selectedColor
+              {(isUsingTouch && hoverColor)
+                ? `#${hoverColor.r.toString(16).padStart(2, '0')}${hoverColor.g.toString(16).padStart(2, '0')}${hoverColor.b.toString(16).padStart(2, '0')}`
+                : selectedColor
                 ? `#${selectedColor.r.toString(16).padStart(2, '0')}${selectedColor.g.toString(16).padStart(2, '0')}${selectedColor.b.toString(16).padStart(2, '0')}`
                 : 'No color selected'}
             </span>
-            {selectedColor && (
-              <span>RGB({selectedColor.r}, {selectedColor.g}, {selectedColor.b})</span>
+            {((isUsingTouch && hoverColor) || selectedColor) && (
+              <span>RGB({((isUsingTouch && hoverColor) || selectedColor)!.r}, {((isUsingTouch && hoverColor) || selectedColor)!.g}, {((isUsingTouch && hoverColor) || selectedColor)!.b})</span>
             )}
           </div>
         </div>
