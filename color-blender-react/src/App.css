@@ -101,6 +101,9 @@ header p {
     padding: 20px;
     border-radius: 10px;
     border: 2px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
 }
 
 .color-info {
@@ -115,6 +118,7 @@ header p {
     border-radius: 10px;
     border: 2px solid #ddd;
     background: white;
+    flex-shrink: 0;
 }
 
 .color-values {
@@ -127,6 +131,12 @@ header p {
     font-family: 'Courier New', monospace;
     font-size: 0.95em;
     color: #333;
+}
+
+.color-label {
+    font-weight: bold;
+    color: #667eea !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
 }
 
 /* Grid Section */

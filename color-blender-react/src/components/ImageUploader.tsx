@@ -180,27 +180,41 @@ export function ImageUploader({ onColorPicked, selectedColor }: ImageUploaderPro
         />
       </div>
       <div className="selected-color-display">
+        {hoverColor && (
+          <div className="color-info">
+            <div
+              className="color-swatch"
+              style={{
+                backgroundColor: `rgb(${hoverColor.r}, ${hoverColor.g}, ${hoverColor.b})`
+              }}
+            />
+            <div className="color-values">
+              <span className="color-label">Preview:</span>
+              <span>
+                #{hoverColor.r.toString(16).padStart(2, '0')}{hoverColor.g.toString(16).padStart(2, '0')}{hoverColor.b.toString(16).padStart(2, '0')}
+              </span>
+              <span>RGB({hoverColor.r}, {hoverColor.g}, {hoverColor.b})</span>
+            </div>
+          </div>
+        )}
         <div className="color-info">
           <div
             className="color-swatch"
             style={{
-              backgroundColor: hoverColor
-                ? `rgb(${hoverColor.r}, ${hoverColor.g}, ${hoverColor.b})`
-                : selectedColor
+              backgroundColor: selectedColor
                 ? `rgb(${selectedColor.r}, ${selectedColor.g}, ${selectedColor.b})`
                 : 'white'
             }}
           />
           <div className="color-values">
+            <span className="color-label">Selected:</span>
             <span>
-              {hoverColor
-                ? `#${hoverColor.r.toString(16).padStart(2, '0')}${hoverColor.g.toString(16).padStart(2, '0')}${hoverColor.b.toString(16).padStart(2, '0')}`
-                : selectedColor
+              {selectedColor
                 ? `#${selectedColor.r.toString(16).padStart(2, '0')}${selectedColor.g.toString(16).padStart(2, '0')}${selectedColor.b.toString(16).padStart(2, '0')}`
                 : 'No color selected'}
             </span>
-            {(hoverColor || selectedColor) && (
-              <span>RGB({(hoverColor || selectedColor)!.r}, {(hoverColor || selectedColor)!.g}, {(hoverColor || selectedColor)!.b})</span>
+            {selectedColor && (
+              <span>RGB({selectedColor.r}, {selectedColor.g}, {selectedColor.b})</span>
             )}
           </div>
         </div>
