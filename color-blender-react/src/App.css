@@ -93,6 +93,7 @@ header p {
     max-width: 100%;
     cursor: crosshair;
     display: block;
+    touch-action: none;
 }
 
 .selected-color-display {

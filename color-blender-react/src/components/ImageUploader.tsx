@@ -98,6 +98,60 @@ export function ImageUploader({ onColorPicked, selectedColor }: ImageUploaderPro
     setHoverColor(null);
   };
 
+  const handleCanvasTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const canvasX = Math.floor(x * scaleX);
+    const canvasY = Math.floor(y * scaleY);
+
+    // Check if coordinates are within canvas bounds
+    if (canvasX >= 0 && canvasX < canvas.width && canvasY >= 0 && canvasY < canvas.height) {
+      const imageData = ctx.getImageData(canvasX, canvasY, 1, 1);
+      const color = getColorFromImageData(imageData);
+      setHoverColor(color);
+    }
+  };
+
+  const handleCanvasTouchEnd = () => {
+    setHoverColor(null);
+  };
+
+  const handleCanvasTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const canvasX = Math.floor(x * scaleX);
+    const canvasY = Math.floor(y * scaleY);
+
+    // Check if coordinates are within canvas bounds
+    if (canvasX >= 0 && canvasX < canvas.width && canvasY >= 0 && canvasY < canvas.height) {
+      const imageData = ctx.getImageData(canvasX, canvasY, 1, 1);
+      const color = getColorFromImageData(imageData);
+      setHoverColor(color);
+    }
+  };
+
   return (
     <div className="image-section">
       <h2>Image & Color Picker</h2>
@@ -119,6 +173,10 @@ export function ImageUploader({ onColorPicked, selectedColor }: ImageUploaderPro
           onClick={handleCanvasClick}
           onMouseMove={handleCanvasMouseMove}
           onMouseLeave={handleCanvasMouseLeave}
+          onTouchStart={handleCanvasTouchStart}
+          onTouchMove={handleCanvasTouchMove}
+          onTouchEnd={handleCanvasTouchEnd}
+          onTouchCancel={handleCanvasTouchEnd}
         />
       </div>
       <div className="selected-color-display">
