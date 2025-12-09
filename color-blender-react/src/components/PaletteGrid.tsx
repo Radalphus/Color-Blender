@@ -35,36 +35,76 @@ export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
     });
   }, []);
 
-  const updateAestheticPalette = useCallback((updatedCells: PaletteCellType[]) => {
+  const updateAestheticPalette = useCallback((updatedCells: PaletteCellType[], changedCornerIndex?: number) => {
     const newCells = [...updatedCells];
 
-    // Update edge cells
-    Object.entries(AESTHETIC_EDGES).forEach(([edgeIndex, [corner1Index, corner2Index]]) => {
-      const index = parseInt(edgeIndex);
-      const corner1 = newCells[corner1Index];
-      const corner2 = newCells[corner2Index];
+    if (changedCornerIndex !== undefined) {
+      // Smart reset: only update cells affected by the changed corner
+      const affectedEdges: number[] = [];
 
-      if (corner1.color1 && corner2.color1) {
-        newCells[index] = {
-          ...newCells[index],
-          color1: { ...corner1.color1 },
-          color2: { ...corner2.color1 }
+      // Find which edges are affected by this corner
+      Object.entries(AESTHETIC_EDGES).forEach(([edgeIndex, [corner1Index, corner2Index]]) => {
+        if (corner1Index === changedCornerIndex || corner2Index === changedCornerIndex) {
+          affectedEdges.push(parseInt(edgeIndex));
+        }
+      });
+
+      // Reset only the affected edge cells
+      affectedEdges.forEach(edgeIndex => {
+        const [corner1Index, corner2Index] = AESTHETIC_EDGES[edgeIndex as keyof typeof AESTHETIC_EDGES];
+        const corner1 = newCells[corner1Index];
+        const corner2 = newCells[corner2Index];
+
+        if (corner1.color1 && corner2.color1) {
+          newCells[edgeIndex] = {
+            color1: { ...corner1.color1 },
+            color2: { ...corner2.color1 },
+            color3: null,
+            color4: null,
+            hasAllFourColors: false
+          };
+        }
+      });
+
+      // Reset center cell if all corners have colors
+      const allCornersHaveColors = AESTHETIC_CORNERS.every(idx => newCells[idx].color1);
+      if (allCornersHaveColors) {
+        const cornerColors = AESTHETIC_CORNERS.map(idx => newCells[idx].color1!);
+        newCells[AESTHETIC_CENTER] = {
+          color1: { ...cornerColors[0] },
+          color2: { ...cornerColors[1] },
+          color3: { ...cornerColors[2] },
+          color4: { ...cornerColors[3] },
+          hasAllFourColors: true
         };
       }
-    });
+    } else {
+      // Full update (for initial setup or when no specific corner changed)
+      Object.entries(AESTHETIC_EDGES).forEach(([edgeIndex, [corner1Index, corner2Index]]) => {
+        const index = parseInt(edgeIndex);
+        const corner1 = newCells[corner1Index];
+        const corner2 = newCells[corner2Index];
 
-    // Update center cell
-    const allCornersHaveColors = AESTHETIC_CORNERS.every(idx => newCells[idx].color1);
+        if (corner1.color1 && corner2.color1) {
+          newCells[index] = {
+            ...newCells[index],
+            color1: { ...corner1.color1 },
+            color2: { ...corner2.color1 }
+          };
+        }
+      });
 
-    if (allCornersHaveColors) {
-      const cornerColors = AESTHETIC_CORNERS.map(idx => newCells[idx].color1!);
-      newCells[AESTHETIC_CENTER] = {
-        color1: { ...cornerColors[0] },
-        color2: { ...cornerColors[1] },
-        color3: { ...cornerColors[2] },
-        color4: { ...cornerColors[3] },
-        hasAllFourColors: true
-      };
+      const allCornersHaveColors = AESTHETIC_CORNERS.every(idx => newCells[idx].color1);
+      if (allCornersHaveColors) {
+        const cornerColors = AESTHETIC_CORNERS.map(idx => newCells[idx].color1!);
+        newCells[AESTHETIC_CENTER] = {
+          color1: { ...cornerColors[0] },
+          color2: { ...cornerColors[1] },
+          color3: { ...cornerColors[2] },
+          color4: { ...cornerColors[3] },
+          hasAllFourColors: true
+        };
+      }
     }
 
     return newCells;
@@ -76,7 +116,15 @@ export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
       newCells[index] = cell;
 
       if (paletteType === 'aesthetic') {
-        return updateAestheticPalette(newCells);
+        // Check if the updated cell is a corner
+        const isCorner = AESTHETIC_CORNERS.includes(index as 0 | 2 | 6 | 8);
+        if (isCorner) {
+          // Smart reset: only update affected cells
+          return updateAestheticPalette(newCells, index);
+        } else {
+          // Full update for non-corner cells (shouldn't happen normally)
+          return updateAestheticPalette(newCells);
+        }
       }
 
       return newCells;
