@@ -89,6 +89,5 @@ export function clearCanvas(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement
 ): void {
-  ctx.fillStyle = 'white';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 }

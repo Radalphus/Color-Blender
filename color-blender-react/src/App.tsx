@@ -8,12 +8,24 @@ import './App.css';
 function App() {
   const [selectedColor, setSelectedColor] = useState<Color | null>(null);
   const [paletteType, setPaletteType] = useState<PaletteType>('manual');
+  const [nightMode, setNightMode] = useState<boolean>(false);
 
   return (
-    <div className="container">
+    <div className={`container ${nightMode ? 'night-mode' : ''}`}>
       <header>
-        <h1>Color Blender</h1>
-        <p>Upload an image, pick colors, and blend them on your palette</p>
+        <div className="header-content">
+          <div>
+            <h1>Color Blender</h1>
+            <p>Upload an image, pick colors, and blend them on your palette</p>
+          </div>
+          <button
+            className="night-mode-toggle"
+            onClick={() => setNightMode(!nightMode)}
+            title={nightMode ? 'Switch to Day Mode' : 'Switch to Night Mode'}
+          >
+            {nightMode ? '☀️' : '🌙'}
+          </button>
+        </div>
       </header>
 
       <div className="main-content">

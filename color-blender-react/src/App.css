@@ -453,3 +453,178 @@ header p {
         padding: 15px;
     }
 }
+
+/* Night Mode Styles */
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.night-mode-toggle {
+    padding: 10px 20px;
+    border: 2px solid #ddd;
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.5em;
+    transition: all 0.3s;
+    flex-shrink: 0;
+}
+
+.night-mode-toggle:hover {
+    transform: scale(1.1);
+    border-color: #667eea;
+}
+
+/* Night Mode Theme */
+body:has(.night-mode) {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+}
+
+.night-mode {
+    background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
+    color: #e0e0e0;
+}
+
+.night-mode header h1 {
+    color: #e0e0e0;
+}
+
+.night-mode header p {
+    color: #b0b0b0;
+}
+
+.night-mode .night-mode-toggle {
+    background: #2a2a4e;
+    border-color: #4a4a6e;
+    color: #f0f0f0;
+}
+
+.night-mode .night-mode-toggle:hover {
+    background: #3a3a5e;
+    border-color: #667eea;
+}
+
+.night-mode .image-section h2,
+.night-mode .grid-section h2 {
+    color: #e0e0e0;
+}
+
+.night-mode .upload-label {
+    background: linear-gradient(135deg, #4a4a8e 0%, #6a4a9e 100%);
+}
+
+.night-mode .upload-label:hover {
+    background: linear-gradient(135deg, #5a5a9e 0%, #7a5aae 100%);
+}
+
+.night-mode .canvas-container {
+    background: #2a2a4e;
+    border-color: #4a4a6e;
+}
+
+.night-mode .selected-color-display {
+    background: #1a1a3e;
+    border-color: #3a3a5e;
+}
+
+.night-mode .color-swatch {
+    border-color: #4a4a6e;
+    background: #2a2a4e;
+}
+
+.night-mode .color-values span {
+    color: #d0d0d0;
+}
+
+.night-mode .color-label {
+    color: #8a9aff !important;
+}
+
+.night-mode .palette-type-btn {
+    background: #2a2a4e;
+    border-color: #4a4a6e;
+    color: #b0b0b0;
+}
+
+.night-mode .palette-type-btn:hover {
+    border-color: #667eea;
+}
+
+.night-mode .palette-type-btn.active {
+    background: linear-gradient(135deg, #5a5a9e 0%, #7a5aae 100%);
+    color: white;
+    border-color: #667eea;
+}
+
+.night-mode .palette-cell {
+    background: #3a3a5e;
+    border-color: #4a4a6e;
+}
+
+.night-mode .palette-cell:hover {
+    border-color: #8a9aff;
+}
+
+.night-mode .btn {
+    background: #2a2a4e;
+    border-color: #4a4a6e;
+    color: #d0d0d0;
+}
+
+.night-mode .btn:hover:not(:disabled) {
+    background: #3a3a5e;
+    border-color: #667eea;
+}
+
+.night-mode .btn:disabled {
+    background: #1a1a3e;
+    color: #666;
+}
+
+.night-mode .btn-primary {
+    background: linear-gradient(135deg, #5a5a9e 0%, #7a5aae 100%);
+    color: white;
+    border-color: #667eea;
+}
+
+.night-mode .btn-primary:hover {
+    background: linear-gradient(135deg, #6a6aae 0%, #8a6abe 100%);
+    border-color: #7a8aff;
+}
+
+.night-mode .instructions {
+    background: #1a1a3e;
+    border-color: #3a3a5e;
+}
+
+.night-mode .instructions h3 {
+    color: #e0e0e0;
+}
+
+.night-mode .instructions h4 {
+    color: #c0c0c0;
+}
+
+.night-mode .instructions ol,
+.night-mode .instructions li {
+    color: #b0b0b0;
+}
+
+@media (max-width: 768px) {
+    .header-content {
+        flex-direction: row;
+        gap: 10px;
+    }
+
+    .header-content > div {
+        flex: 1;
+    }
+
+    .night-mode-toggle {
+        font-size: 1.3em;
+        padding: 8px 15px;
+    }
+}
