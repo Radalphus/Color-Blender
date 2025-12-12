@@ -218,6 +218,22 @@ export function PaletteCell({
                   onCellUpdate(index, { ...cell, color2: { ...selectedColor } }, true);
                 }
               } else {
+                // Check if the new color matches either existing color
+                const matchesColor1 =
+                  cell.color1.r === selectedColor.r &&
+                  cell.color1.g === selectedColor.g &&
+                  cell.color1.b === selectedColor.b;
+
+                const matchesColor2 =
+                  cell.color2.r === selectedColor.r &&
+                  cell.color2.g === selectedColor.g &&
+                  cell.color2.b === selectedColor.b;
+
+                if (matchesColor1 || matchesColor2) {
+                  // Color already exists in cell, ignore the tap
+                  return;
+                }
+
                 // Calculate average from canvas
                 const ctx = canvas.getContext('2d');
                 if (ctx) {
@@ -326,8 +342,25 @@ export function PaletteCell({
 
         onCellUpdate(index, { ...cell, color2: { ...selectedColor } }, true);
       }
-      // If both colors exist, calculate average color from blended canvas
+      // If both colors exist, check if new color is already in the cell
       else {
+        // Check if the new color matches either existing color
+        const matchesColor1 =
+          cell.color1.r === selectedColor.r &&
+          cell.color1.g === selectedColor.g &&
+          cell.color1.b === selectedColor.b;
+
+        const matchesColor2 =
+          cell.color2.r === selectedColor.r &&
+          cell.color2.g === selectedColor.g &&
+          cell.color2.b === selectedColor.b;
+
+        if (matchesColor1 || matchesColor2) {
+          // Color already exists in cell, ignore the click
+          return;
+        }
+
+        // New color is different - calculate average and add new color
         const canvas = canvasRef.current;
         if (canvas) {
           const ctx = canvas.getContext('2d');
