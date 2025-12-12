@@ -5,9 +5,9 @@ A web-based color blending application that allows users to upload images, pick 
 
 ---
 
-## Current Status: ✅ COMPLETE - Version 2.2 (React + TypeScript)
+## Current Status: ✅ COMPLETE - Version 2.3 (React + TypeScript)
 
-The application has been fully migrated to React + TypeScript with modular architecture, enhanced UX improvements, and full undo/redo support!
+The application has been fully migrated to React + TypeScript with modular architecture, enhanced UX improvements, full undo/redo support, and intuitive click-based interaction system!
 
 ---
 
@@ -118,6 +118,7 @@ The application has been fully migrated to React + TypeScript with modular archi
 - [x] **Combined Preview/Selection**: Preview and selected colors merged for less confusion
 - [x] **Mobile Hover Fix**: Fixed color hover to work correctly on mobile devices
 - [x] **Aesthetic Mode Error Messages**: Edges show error message when clicked but not filled
+- [x] **Night Mode Toggle**: Sun/moon button to switch between light and dark themes
 - [x] **GitHub Pages Deployment**: Configured and deployed to GitHub Pages
 - [x] **Vite Base Path**: Updated vite.config.ts for GitHub Pages compatibility
 
@@ -131,11 +132,21 @@ The application has been fully migrated to React + TypeScript with modular archi
 - [x] **History Limit**: Maximum 20 states to prevent memory issues
 - [x] **Clear Grid Integration**: Resets history when clearing palette
 
+### Phase 10: Interaction System Overhaul (v2.3) ✅
+- [x] **Click-Based Interaction**: Changed from double-click to single fast click for adding colors
+- [x] **Click-and-Hold Blending**: Hold (200ms) and drag to blend colors together
+- [x] **Double-Click to Clear**: Double-click to erase/clear a cell completely
+- [x] **Mouse & Touch Parity**: Identical interaction on both desktop (mouse) and mobile (touch)
+- [x] **Timer-Based Detection**: 200ms threshold for hold detection, 300ms for double-click
+- [x] **Passive Event Fix**: Fixed mobile preventDefault error with non-passive touch listeners
+- [x] **Stale Closure Fix**: Fixed mobile selectedColor bug by implementing fresh closures in useEffect
+- [x] **History Integration**: Maintains smart state saving with new interaction model
+
 ---
 
 ## Technical Implementation Details
 
-### File Structure (v2.2 - React + TypeScript)
+### File Structure (v2.3 - React + TypeScript)
 ```
 Color-Blender/
 ├── color-blender-react/          # React application root
@@ -204,11 +215,15 @@ ctx.fill()
 - **Larger brush**: 50px radius for faster cell filling
 - **Permanent**: All changes written directly to canvas
 
-#### Interaction System (v2.1+)
-- **Unified Interface**: No separate picking/blending modes (simplified from v2.0)
-- **Double-Click to Add**: Double-click cells to add colors in Manual mode
-- **Drag to Blend**: Click and drag to blend colors
-- **Smart Behavior**: Context-aware interaction based on cell state
+#### Interaction System (v2.3+)
+- **Fast Click to Add**: Single fast click adds a color to the cell
+- **Click-and-Hold to Blend**: Hold for 200ms then drag to blend colors together
+- **Double-Click to Clear**: Quick double-click erases a cell completely
+- **Timer-Based Detection**: 200ms hold threshold, 300ms double-click threshold
+- **Mouse & Touch Support**: Identical behavior on desktop (mouse) and mobile (touch)
+- **Non-Passive Touch Events**: Touch listeners use `{ passive: false }` to allow preventDefault
+- **Fresh Closures**: Touch handlers re-attach on updates to access current state (selectedColor)
+- **Smart History**: Only saves on color add, blend completion (80%), and cell clear
 - **Color Preview**: Hover over image to preview color before selecting
 
 #### Aesthetic Palette Auto-Fill (v2.1+)
@@ -268,18 +283,20 @@ ctx.fill()
   - Record blending process as GIF
   - Timelapse of palette creation
 
-- [ ] **Keyboard Shortcuts**
-  - Number keys (1-9) to select cells
-  - Space to clear current cell
-  - Arrow keys to navigate cells
+- [x] **Keyboard Shortcuts** ✅ (Partial - Completed in v2.2)
+  - Ctrl+Z for undo, Ctrl+Y for redo
+  - Number keys (1-9) to select cells (not yet implemented)
+  - Space to clear current cell (not yet implemented)
+  - Arrow keys to navigate cells (not yet implemented)
 
 - [ ] **Share Functionality**
   - Generate shareable links
   - Social media integration
 
-- [ ] **Dark Mode**
-  - Toggle between light/dark themes
-  - Save preference
+- [x] **Night Mode** ✅ (Completed - integrated with v2.1)
+  - Toggle between light/night themes
+  - Sun/moon button in header
+  - Full UI theme switching
 
 ### Advanced Features 🚀
 - [ ] **Progressive Web App (PWA)**
@@ -386,7 +403,19 @@ export default defineConfig({
 
 ## Version History
 
-### v2.2 - December 8, 2025 (Current)
+### v2.3 - December 11, 2025 (Current)
+**Interaction System Overhaul**
+- Changed color adding from double-click to single fast click
+- Implemented click-and-hold (200ms) to activate blending mode
+- Added double-click to clear/erase cells
+- Unified mouse and touch interaction systems for desktop/mobile parity
+- Fixed mobile passive event listener error with non-passive touch handlers
+- Fixed mobile stale closure bug (selectedColor not accessible in touch handlers)
+- Implemented fresh closures by re-attaching touch listeners on component updates
+- Maintained smart state saving integration with new interaction model
+- All interactions now feel more natural and responsive
+
+### v2.2 - December 8, 2025
 **Undo/Redo System**
 - Implemented comprehensive undo/redo functionality
 - Custom useHistory hook for state management
@@ -408,6 +437,8 @@ export default defineConfig({
 - Combined preview and selection displays for clarity
 - Fixed mobile color hover functionality
 - Added error messages for unfilled aesthetic cells
+- Implemented Night Mode with sun/moon toggle button
+- Full theme switching for all UI elements in night mode
 - Deployed to GitHub Pages with proper Vite configuration
 - Enhanced mobile experience
 
@@ -471,16 +502,22 @@ npm run preview      # Preview production build
 - [x] Test eyedropper on different image sizes
 - [x] Test Manual Palette mode (2 colors per cell)
 - [x] Test Aesthetic Palette mode (corner auto-fill)
-- [x] Test double-click color adding in Manual mode (v2.1)
+- [x] Test fast click color adding (v2.3)
+- [x] Test click-and-hold blending interaction (v2.3)
+- [x] Test double-click to clear cells (v2.3)
 - [x] Test color preview on hover over image (v2.1)
 - [x] Test selected color display indicator (v2.1)
 - [x] Test smart aesthetic reset (v2.1)
 - [x] Test 4-color center cell blending
 - [x] Test clean solid blending (no smudging)
+- [x] Test undo/redo functionality (v2.2)
+- [x] Test undo/redo keyboard shortcuts (v2.2)
 - [x] Test save/export functionality
 - [x] Test on different browsers
 - [x] Test responsive design on mobile
-- [x] Test touch events on mobile devices
+- [x] Test touch events on mobile devices (v2.3)
+- [x] Test mobile selectedColor fix (v2.3)
+- [x] Test mobile passive event listener fix (v2.3)
 - [x] Test mobile color hover (v2.1)
 - [x] Test with large images (memory handling)
 - [x] Test GitHub Pages deployment (v2.1)
@@ -502,8 +539,8 @@ Free to use and modify for personal and commercial projects.
 
 ---
 
-**Last Updated**: December 8, 2025
-**Current Version**: v2.2 - Undo/Redo System
+**Last Updated**: December 11, 2025
+**Current Version**: v2.3 - Interaction System Overhaul
 **Status**: Production Ready & Deployed ✅
 **Live on**: GitHub Pages
 **Next Milestone**: Load saved palettes feature or palette library system
