@@ -23,17 +23,20 @@ body {
 header {
     text-align: center;
     margin-bottom: 40px;
+    position: relative;
 }
 
 header h1 {
     color: #333;
     font-size: 2.5em;
     margin-bottom: 10px;
+    text-align: center;
 }
 
 header p {
     color: #666;
     font-size: 1.1em;
+    text-align: center;
 }
 
 .main-content {
@@ -54,6 +57,7 @@ header p {
     color: #333;
     font-size: 1.5em;
     margin-bottom: 15px;
+    text-align: center;
 }
 
 .upload-area {
@@ -149,6 +153,7 @@ header p {
     color: #333;
     font-size: 1.5em;
     margin-bottom: 15px;
+    text-align: center;
 }
 
 /* Palette Type Toggle */
@@ -303,22 +308,34 @@ header p {
     color: #333;
     margin-bottom: 15px;
     font-size: 1.3em;
+    text-align: center;
 }
 
 .instructions h4 {
     color: #555;
     margin-top: 15px;
     margin-bottom: 10px;
+    text-align: center;
 }
 
 .instructions ol {
-    margin-left: 20px;
+    margin-left: auto;
+    margin-right: auto;
     color: #555;
     line-height: 1.8;
+    max-width: fit-content;
+    padding-left: 20px;
+    text-align: left;
 }
 
 .instructions li {
     margin-bottom: 8px;
+    text-align: left;
+}
+
+.instructions .tip-text {
+    text-align: center;
+    margin-top: 20px;
 }
 
 /* Responsive Design */
@@ -456,13 +473,14 @@ header p {
 
 /* Night Mode Styles */
 .header-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    position: relative;
     width: 100%;
 }
 
 .night-mode-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
     padding: 10px 20px;
     border: 2px solid #ddd;
     background: white;
@@ -470,7 +488,6 @@ header p {
     cursor: pointer;
     font-size: 1.5em;
     transition: all 0.3s;
-    flex-shrink: 0;
 }
 
 .night-mode-toggle:hover {
@@ -614,17 +631,8 @@ body:has(.night-mode) {
 }
 
 @media (max-width: 768px) {
-    .header-content {
-        flex-direction: row;
-        gap: 10px;
-    }
-
-    .header-content > div {
-        flex: 1;
-    }
-
     .night-mode-toggle {
-        font-size: 1.3em;
-        padding: 8px 15px;
+        font-size: 1.2em;
+        padding: 8px 12px;
     }
 }

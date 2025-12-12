@@ -56,7 +56,7 @@ function App() {
         </div>
       </div>
 
-      <Instructions />
+      <Instructions paletteType={paletteType} />
     </div>
   );
 }
