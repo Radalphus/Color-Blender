@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   PaletteCell as PaletteCellType,
   Color,
@@ -29,6 +29,7 @@ export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
   const [canvasRefs, setCanvasRefs] = useState<(HTMLCanvasElement | null)[]>(Array(9).fill(null));
   const { saveState, undo, redo, canUndo, canRedo, clearHistory } = useHistory();
   const [isInitialized, setIsInitialized] = useState(false);
+  const pendingSaveRef = useRef<boolean>(false); // Prevent duplicate saves
 
   const handleCanvasRef = useCallback((index: number, canvas: HTMLCanvasElement | null) => {
     setCanvasRefs(prev => {
@@ -92,7 +93,8 @@ export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
         saveState(cells, canvasRefs);
       }, 100);
     }
-  }, [canvasRefs, cells, saveState, isInitialized]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasRefs, isInitialized]); // Only run when canvases are ready, not when cells change
 
   // Keyboard shortcuts for undo/redo
   useEffect(() => {
@@ -206,11 +208,13 @@ export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
       }
 
       // Save state after update (for color additions)
-      if (shouldSaveHistory) {
-        // Use setTimeout to ensure canvas refs are updated
+      if (shouldSaveHistory && !pendingSaveRef.current) {
+        pendingSaveRef.current = true;
+        // Use setTimeout to ensure canvas has been drawn
         setTimeout(() => {
           saveState(finalCells, canvasRefs);
-        }, 0);
+          pendingSaveRef.current = false;
+        }, 50);
       }
 
       return finalCells;
