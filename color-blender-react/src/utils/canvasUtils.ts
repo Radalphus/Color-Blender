@@ -12,7 +12,7 @@ export function drawBlendedColor(
 
   let targetColor: Color;
 
-  // CENTER CELL WITH 4 COLORS - calculate the median/center color of all 4
+  // CELL WITH 4 COLORS - calculate the median/center color of all 4
   if (cell.hasAllFourColors && cell.color3 && cell.color4) {
     targetColor = {
       r: Math.round((cell.color1.r + cell.color2.r + cell.color3.r + cell.color4.r) / 4),
@@ -20,7 +20,15 @@ export function drawBlendedColor(
       b: Math.round((cell.color1.b + cell.color2.b + cell.color3.b + cell.color4.b) / 4)
     };
   }
-  // NORMAL 2-COLOR CELL - calculate the median/center color of both
+  // CELL WITH 3 COLORS - calculate the median/center color of all 3
+  else if (cell.color3) {
+    targetColor = {
+      r: Math.round((cell.color1.r + cell.color2.r + cell.color3.r) / 3),
+      g: Math.round((cell.color1.g + cell.color2.g + cell.color3.g) / 3),
+      b: Math.round((cell.color1.b + cell.color2.b + cell.color3.b) / 3)
+    };
+  }
+  // CELL WITH 2 COLORS - calculate the median/center color of both
   else {
     targetColor = {
       r: Math.round((cell.color1.r + cell.color2.r) / 2),
@@ -58,6 +66,28 @@ export function fillCellWithTwoColors(
   // Right half
   ctx.fillStyle = colorToRgbString(color2);
   ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
+}
+
+export function fillCellWithThreeColors(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  color1: Color,
+  color2: Color,
+  color3: Color
+): void {
+  const thirdW = canvas.width / 3;
+
+  // Left third
+  ctx.fillStyle = colorToRgbString(color1);
+  ctx.fillRect(0, 0, thirdW, canvas.height);
+
+  // Middle third
+  ctx.fillStyle = colorToRgbString(color2);
+  ctx.fillRect(thirdW, 0, thirdW, canvas.height);
+
+  // Right third
+  ctx.fillStyle = colorToRgbString(color3);
+  ctx.fillRect(thirdW * 2, 0, thirdW, canvas.height);
 }
 
 export function fillCellWithFourColors(

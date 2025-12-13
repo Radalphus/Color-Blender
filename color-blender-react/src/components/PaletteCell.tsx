@@ -3,6 +3,7 @@ import { PaletteCell as PaletteCellType, Color, PaletteType } from '../types';
 import {
   fillCellWithColor,
   fillCellWithTwoColors,
+  fillCellWithThreeColors,
   fillCellWithFourColors,
   clearCanvas,
   drawBlendedColor
@@ -140,13 +141,20 @@ export function PaletteCell({
               ctx.fillStyle = `rgb(${avgR}, ${avgG}, ${avgB})`;
               ctx.fillRect(0, 0, canvas.width, canvas.height);
               hasAutoFilledRef.current = true;
+              // In aesthetic mode:
+              // - Corners trigger updates (fills edges)
+              // - Edges trigger updates (fills center only)
+              // - Center skips update (just keeps blended state)
+              // In manual mode, always skip update
+              const isCenter = index === 4;
+              const skipUpdate = paletteType === 'manual' || isCenter;
               onCellUpdate(index, {
                 color1: { r: avgR, g: avgG, b: avgB },
                 color2: null,
                 color3: null,
                 color4: null,
                 hasAllFourColors: false
-              }, true, true);
+              }, true, skipUpdate);
             }
           }
         }
@@ -195,67 +203,9 @@ export function PaletteCell({
               alert('Please select a color from the image first!');
             } else if (paletteType === 'aesthetic' && !isCornerCell) {
               alert('In Aesthetic Palette mode, only click on corner cells! Edge and center cells auto-fill.');
-            } else if (paletteType === 'aesthetic') {
-              onCellUpdate(index, {
-                color1: { ...selectedColor },
-                color2: null,
-                color3: null,
-                color4: null,
-                hasAllFourColors: false
-              }, true);
             } else {
-              // Manual mode logic
-              if (!cell.color1) {
-                onCellUpdate(index, { ...cell, color1: { ...selectedColor } }, true);
-              } else if (!cell.color2) {
-                const isSameColor =
-                  cell.color1.r === selectedColor.r &&
-                  cell.color1.g === selectedColor.g &&
-                  cell.color1.b === selectedColor.b;
-                if (isSameColor) {
-                  alert('Please select a different color! Both colors cannot be the same.');
-                } else {
-                  onCellUpdate(index, { ...cell, color2: { ...selectedColor } }, true);
-                }
-              } else {
-                // Check if the new color matches either existing color
-                const matchesColor1 =
-                  cell.color1.r === selectedColor.r &&
-                  cell.color1.g === selectedColor.g &&
-                  cell.color1.b === selectedColor.b;
-
-                const matchesColor2 =
-                  cell.color2.r === selectedColor.r &&
-                  cell.color2.g === selectedColor.g &&
-                  cell.color2.b === selectedColor.b;
-
-                if (matchesColor1 || matchesColor2) {
-                  // Color already exists in cell, ignore the tap
-                  return;
-                }
-
-                // Calculate average from canvas
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                  const pixels = imageData.data;
-                  let totalR = 0, totalG = 0, totalB = 0, pixelCount = 0;
-                  for (let i = 0; i < pixels.length; i += 4) {
-                    totalR += pixels[i];
-                    totalG += pixels[i + 1];
-                    totalB += pixels[i + 2];
-                    pixelCount++;
-                  }
-                  const avgR = Math.round(totalR / pixelCount);
-                  const avgG = Math.round(totalG / pixelCount);
-                  const avgB = Math.round(totalB / pixelCount);
-                  onCellUpdate(index, {
-                    ...cell,
-                    color1: { r: avgR, g: avgG, b: avgB },
-                    color2: { ...selectedColor }
-                  }, true);
-                }
-              }
+              // Both aesthetic corners and manual cells support 4 colors
+              add4ColorLogic();
             }
           }
           clickCountRef.current = 0;
@@ -290,6 +240,9 @@ export function PaletteCell({
     if (cell.hasAllFourColors && cell.color1 && cell.color2 && cell.color3 && cell.color4) {
       fillCellWithFourColors(ctx, canvas, [cell.color1, cell.color2, cell.color3, cell.color4]);
       hasAutoFilledRef.current = false; // Reset flag when cell structure changes
+    } else if (cell.color1 && cell.color2 && cell.color3) {
+      fillCellWithThreeColors(ctx, canvas, cell.color1, cell.color2, cell.color3);
+      hasAutoFilledRef.current = false; // Reset flag when cell structure changes
     } else if (cell.color1 && cell.color2) {
       fillCellWithTwoColors(ctx, canvas, cell.color1, cell.color2);
       hasAutoFilledRef.current = false; // Reset flag when cell structure changes
@@ -298,6 +251,134 @@ export function PaletteCell({
       hasAutoFilledRef.current = false; // Reset flag when cell structure changes
     }
   }, [cell]);
+
+  // Shared logic for adding up to 4 colors to a cell
+  const add4ColorLogic = () => {
+    if (!selectedColor) return;
+
+    // If cell is empty, add first color
+    if (!cell.color1) {
+      onCellUpdate(index, { ...cell, color1: { ...selectedColor } }, true);
+    }
+    // If only has first color, add second color
+    else if (!cell.color2) {
+      const isSameColor =
+        cell.color1.r === selectedColor.r &&
+        cell.color1.g === selectedColor.g &&
+        cell.color1.b === selectedColor.b;
+
+      if (isSameColor) {
+        alert('Please select a different color! All colors must be unique.');
+        return;
+      }
+
+      onCellUpdate(index, { ...cell, color2: { ...selectedColor } }, true);
+    }
+    // If has two colors, add third color
+    else if (!cell.color3) {
+      const matchesColor1 =
+        cell.color1.r === selectedColor.r &&
+        cell.color1.g === selectedColor.g &&
+        cell.color1.b === selectedColor.b;
+
+      const matchesColor2 =
+        cell.color2.r === selectedColor.r &&
+        cell.color2.g === selectedColor.g &&
+        cell.color2.b === selectedColor.b;
+
+      if (matchesColor1 || matchesColor2) {
+        alert('Please select a different color! All colors must be unique.');
+        return;
+      }
+
+      onCellUpdate(index, { ...cell, color3: { ...selectedColor } }, true);
+    }
+    // If has three colors, add fourth color
+    else if (!cell.color4) {
+      const matchesColor1 =
+        cell.color1.r === selectedColor.r &&
+        cell.color1.g === selectedColor.g &&
+        cell.color1.b === selectedColor.b;
+
+      const matchesColor2 =
+        cell.color2.r === selectedColor.r &&
+        cell.color2.g === selectedColor.g &&
+        cell.color2.b === selectedColor.b;
+
+      const matchesColor3 =
+        cell.color3.r === selectedColor.r &&
+        cell.color3.g === selectedColor.g &&
+        cell.color3.b === selectedColor.b;
+
+      if (matchesColor1 || matchesColor2 || matchesColor3) {
+        alert('Please select a different color! All colors must be unique.');
+        return;
+      }
+
+      onCellUpdate(index, {
+        ...cell,
+        color4: { ...selectedColor },
+        hasAllFourColors: true
+      }, true);
+    }
+    // If all four colors exist, calculate average and replace with blended + new color
+    else {
+      const matchesColor1 =
+        cell.color1.r === selectedColor.r &&
+        cell.color1.g === selectedColor.g &&
+        cell.color1.b === selectedColor.b;
+
+      const matchesColor2 =
+        cell.color2.r === selectedColor.r &&
+        cell.color2.g === selectedColor.g &&
+        cell.color2.b === selectedColor.b;
+
+      const matchesColor3 =
+        cell.color3!.r === selectedColor.r &&
+        cell.color3!.g === selectedColor.g &&
+        cell.color3!.b === selectedColor.b;
+
+      const matchesColor4 =
+        cell.color4!.r === selectedColor.r &&
+        cell.color4!.g === selectedColor.g &&
+        cell.color4!.b === selectedColor.b;
+
+      if (matchesColor1 || matchesColor2 || matchesColor3 || matchesColor4) {
+        return; // Color already exists, ignore
+      }
+
+      // Calculate average of all current colors
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const pixels = imageData.data;
+          let totalR = 0, totalG = 0, totalB = 0;
+          const pixelCount = pixels.length / 4;
+
+          for (let i = 0; i < pixels.length; i += 4) {
+            totalR += pixels[i];
+            totalG += pixels[i + 1];
+            totalB += pixels[i + 2];
+          }
+
+          const avgR = Math.round(totalR / pixelCount);
+          const avgG = Math.round(totalG / pixelCount);
+          const avgB = Math.round(totalB / pixelCount);
+
+          onCellUpdate(index, {
+            ...cell,
+            color1: { r: avgR, g: avgG, b: avgB },
+            color2: { ...selectedColor },
+            color3: null,
+            color4: null,
+            hasAllFourColors: false
+          }, true);
+        }
+      }
+    }
+  };
 
   // Add color to cell (called on fast click)
   const addColorToCell = () => {
@@ -313,85 +394,11 @@ export function PaletteCell({
         return;
       }
 
-      // Corners only hold one color - always replace with the new color
-      onCellUpdate(index, {
-        color1: { ...selectedColor },
-        color2: null,
-        color3: null,
-        color4: null,
-        hasAllFourColors: false
-      }, true); // Save to history
+      // Aesthetic corners support 4 colors just like manual mode
+      add4ColorLogic();
     } else {
-      // Manual palette mode
-      // If cell is empty, add first color
-      if (!cell.color1) {
-        onCellUpdate(index, { ...cell, color1: { ...selectedColor } }, true);
-      }
-      // If only has first color, add second color
-      else if (!cell.color2) {
-        // Check if the new color is the same as color1
-        const isSameColor =
-          cell.color1.r === selectedColor.r &&
-          cell.color1.g === selectedColor.g &&
-          cell.color1.b === selectedColor.b;
-
-        if (isSameColor) {
-          alert('Please select a different color! Both colors cannot be the same.');
-          return;
-        }
-
-        onCellUpdate(index, { ...cell, color2: { ...selectedColor } }, true);
-      }
-      // If both colors exist, check if new color is already in the cell
-      else {
-        // Check if the new color matches either existing color
-        const matchesColor1 =
-          cell.color1.r === selectedColor.r &&
-          cell.color1.g === selectedColor.g &&
-          cell.color1.b === selectedColor.b;
-
-        const matchesColor2 =
-          cell.color2.r === selectedColor.r &&
-          cell.color2.g === selectedColor.g &&
-          cell.color2.b === selectedColor.b;
-
-        if (matchesColor1 || matchesColor2) {
-          // Color already exists in cell, ignore the click
-          return;
-        }
-
-        // New color is different - calculate average and add new color
-        const canvas = canvasRef.current;
-        if (canvas) {
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            // Get the entire canvas pixel data
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const pixels = imageData.data;
-
-            // Calculate average color from all pixels
-            let totalR = 0, totalG = 0, totalB = 0;
-            const pixelCount = pixels.length / 4; // Each pixel has 4 values (RGBA)
-
-            for (let i = 0; i < pixels.length; i += 4) {
-              totalR += pixels[i];
-              totalG += pixels[i + 1];
-              totalB += pixels[i + 2];
-            }
-
-            const avgR = Math.round(totalR / pixelCount);
-            const avgG = Math.round(totalG / pixelCount);
-            const avgB = Math.round(totalB / pixelCount);
-
-            // Blended color becomes color1, new color becomes color2
-            onCellUpdate(index, {
-              ...cell,
-              color1: { r: avgR, g: avgG, b: avgB },
-              color2: { ...selectedColor }
-            }, true);
-          }
-        }
-      }
+      // Manual palette mode - supports 4 colors per cell
+      add4ColorLogic();
     }
   };
 
@@ -532,14 +539,20 @@ export function PaletteCell({
             hasAutoFilledRef.current = true;
 
             // Update cell data to reflect the blended color and SAVE TO HISTORY
-            // Skip aesthetic update to prevent resetting edge/center cells
+            // In aesthetic mode:
+            // - Corners trigger updates (fills edges)
+            // - Edges trigger updates (fills center only)
+            // - Center skips update (just keeps blended state)
+            // In manual mode, always skip update
+            const isCenter = index === 4;
+            const skipUpdate = paletteType === 'manual' || isCenter;
             onCellUpdate(index, {
               color1: { r: avgR, g: avgG, b: avgB },
               color2: null,
               color3: null,
               color4: null,
               hasAllFourColors: false
-            }, true, true); // shouldSaveHistory=true, skipAestheticUpdate=true
+            }, true, skipUpdate);
           }
         }
       }

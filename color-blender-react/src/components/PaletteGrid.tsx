@@ -112,10 +112,36 @@ export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
 
-  const updateAestheticPalette = useCallback((updatedCells: PaletteCellType[], changedCornerIndex?: number) => {
+  const updateAestheticPalette = useCallback((updatedCells: PaletteCellType[], changedCornerIndex?: number, updateCenterOnly: boolean = false) => {
     const newCells = [...updatedCells];
 
-    if (changedCornerIndex !== undefined) {
+    if (updateCenterOnly) {
+      // Only update center cell (used when edges are blended)
+      const allEdgesBlended = Object.keys(AESTHETIC_EDGES).every(edgeIndex => {
+        const edge = newCells[parseInt(edgeIndex)];
+        return edge.color1 && !edge.color2 && !edge.color3 && !edge.color4;
+      });
+
+      if (allEdgesBlended) {
+        const edgeColors = Object.keys(AESTHETIC_EDGES).map(idx => newCells[parseInt(idx)].color1!);
+        newCells[AESTHETIC_CENTER] = {
+          color1: { ...edgeColors[0] },
+          color2: { ...edgeColors[1] },
+          color3: { ...edgeColors[2] },
+          color4: { ...edgeColors[3] },
+          hasAllFourColors: true
+        };
+      } else {
+        // Clear center if edges aren't ready
+        newCells[AESTHETIC_CENTER] = {
+          color1: null,
+          color2: null,
+          color3: null,
+          color4: null,
+          hasAllFourColors: false
+        };
+      }
+    } else if (changedCornerIndex !== undefined) {
       // Smart reset: only update cells affected by the changed corner
       const affectedEdges: number[] = [];
 
@@ -132,10 +158,23 @@ export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
         const corner1 = newCells[corner1Index];
         const corner2 = newCells[corner2Index];
 
-        if (corner1.color1 && corner2.color1) {
+        // Edges only fill if BOTH adjacent corners are fully blended (only color1, no other colors)
+        const corner1IsBlended = corner1.color1 && !corner1.color2 && !corner1.color3 && !corner1.color4;
+        const corner2IsBlended = corner2.color1 && !corner2.color2 && !corner2.color3 && !corner2.color4;
+
+        if (corner1IsBlended && corner2IsBlended) {
           newCells[edgeIndex] = {
-            color1: { ...corner1.color1 },
-            color2: { ...corner2.color1 },
+            color1: { ...corner1.color1! },
+            color2: { ...corner2.color1! },
+            color3: null,
+            color4: null,
+            hasAllFourColors: false
+          };
+        } else {
+          // Clear edge if corners aren't ready
+          newCells[edgeIndex] = {
+            color1: null,
+            color2: null,
             color3: null,
             color4: null,
             hasAllFourColors: false
@@ -143,16 +182,29 @@ export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
         }
       });
 
-      // Reset center cell if all corners have colors
-      const allCornersHaveColors = AESTHETIC_CORNERS.every(idx => newCells[idx].color1);
-      if (allCornersHaveColors) {
-        const cornerColors = AESTHETIC_CORNERS.map(idx => newCells[idx].color1!);
+      // Update center cell - only fill if ALL edges are fully blended (only color1, no other colors)
+      const allEdgesBlended = Object.keys(AESTHETIC_EDGES).every(edgeIndex => {
+        const edge = newCells[parseInt(edgeIndex)];
+        return edge.color1 && !edge.color2 && !edge.color3 && !edge.color4;
+      });
+
+      if (allEdgesBlended) {
+        const edgeColors = Object.keys(AESTHETIC_EDGES).map(idx => newCells[parseInt(idx)].color1!);
         newCells[AESTHETIC_CENTER] = {
-          color1: { ...cornerColors[0] },
-          color2: { ...cornerColors[1] },
-          color3: { ...cornerColors[2] },
-          color4: { ...cornerColors[3] },
+          color1: { ...edgeColors[0] },
+          color2: { ...edgeColors[1] },
+          color3: { ...edgeColors[2] },
+          color4: { ...edgeColors[3] },
           hasAllFourColors: true
+        };
+      } else {
+        // Clear center if edges aren't ready
+        newCells[AESTHETIC_CENTER] = {
+          color1: null,
+          color2: null,
+          color3: null,
+          color4: null,
+          hasAllFourColors: false
         };
       }
     } else {
@@ -162,24 +214,53 @@ export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
         const corner1 = newCells[corner1Index];
         const corner2 = newCells[corner2Index];
 
-        if (corner1.color1 && corner2.color1) {
+        // Edges only fill if BOTH adjacent corners are fully blended (only color1, no other colors)
+        const corner1IsBlended = corner1.color1 && !corner1.color2 && !corner1.color3 && !corner1.color4;
+        const corner2IsBlended = corner2.color1 && !corner2.color2 && !corner2.color3 && !corner2.color4;
+
+        if (corner1IsBlended && corner2IsBlended) {
           newCells[index] = {
-            ...newCells[index],
-            color1: { ...corner1.color1 },
-            color2: { ...corner2.color1 }
+            color1: { ...corner1.color1! },
+            color2: { ...corner2.color1! },
+            color3: null,
+            color4: null,
+            hasAllFourColors: false
+          };
+        } else {
+          // Clear edge if corners aren't ready
+          newCells[index] = {
+            color1: null,
+            color2: null,
+            color3: null,
+            color4: null,
+            hasAllFourColors: false
           };
         }
       });
 
-      const allCornersHaveColors = AESTHETIC_CORNERS.every(idx => newCells[idx].color1);
-      if (allCornersHaveColors) {
-        const cornerColors = AESTHETIC_CORNERS.map(idx => newCells[idx].color1!);
+      // Update center cell - only fill if ALL edges are fully blended (only color1, no other colors)
+      const allEdgesBlended = Object.keys(AESTHETIC_EDGES).every(edgeIndex => {
+        const edge = newCells[parseInt(edgeIndex)];
+        return edge.color1 && !edge.color2 && !edge.color3 && !edge.color4;
+      });
+
+      if (allEdgesBlended) {
+        const edgeColors = Object.keys(AESTHETIC_EDGES).map(idx => newCells[parseInt(idx)].color1!);
         newCells[AESTHETIC_CENTER] = {
-          color1: { ...cornerColors[0] },
-          color2: { ...cornerColors[1] },
-          color3: { ...cornerColors[2] },
-          color4: { ...cornerColors[3] },
+          color1: { ...edgeColors[0] },
+          color2: { ...edgeColors[1] },
+          color3: { ...edgeColors[2] },
+          color4: { ...edgeColors[3] },
           hasAllFourColors: true
+        };
+      } else {
+        // Clear center if edges aren't ready
+        newCells[AESTHETIC_CENTER] = {
+          color1: null,
+          color2: null,
+          color3: null,
+          color4: null,
+          hasAllFourColors: false
         };
       }
     }
@@ -198,11 +279,16 @@ export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
       if (paletteType === 'aesthetic' && !skipAestheticUpdate) {
         // Check if the updated cell is a corner
         const isCorner = AESTHETIC_CORNERS.includes(index as 0 | 2 | 6 | 8);
+        const isEdge = [1, 3, 5, 7].includes(index);
+
         if (isCorner) {
-          // Smart reset: only update affected cells
+          // Smart reset: only update affected edges and center
           finalCells = updateAestheticPalette(newCells, index);
+        } else if (isEdge) {
+          // Edge cell updated - only update center
+          finalCells = updateAestheticPalette(newCells, undefined, true);
         } else {
-          // Full update for non-corner cells (shouldn't happen normally)
+          // Center or other cell - full update
           finalCells = updateAestheticPalette(newCells);
         }
       }
