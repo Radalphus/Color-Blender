@@ -17,7 +17,8 @@ interface PaletteGridProps {
 }
 
 export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
-  const [cells, setCells] = useState<PaletteCellType[]>(
+  // Separate state for each palette type
+  const [manualCells, setManualCells] = useState<PaletteCellType[]>(
     Array(9).fill(null).map(() => ({
       color1: null,
       color2: null,
@@ -26,9 +27,36 @@ export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
       hasAllFourColors: false
     }))
   );
-  const [canvasRefs, setCanvasRefs] = useState<(HTMLCanvasElement | null)[]>(Array(9).fill(null));
-  const { saveState, undo, redo, canUndo, canRedo, clearHistory } = useHistory();
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [aestheticCells, setAestheticCells] = useState<PaletteCellType[]>(
+    Array(9).fill(null).map(() => ({
+      color1: null,
+      color2: null,
+      color3: null,
+      color4: null,
+      hasAllFourColors: false
+    }))
+  );
+
+  // Separate canvas refs for each palette type
+  const [manualCanvasRefs, setManualCanvasRefs] = useState<(HTMLCanvasElement | null)[]>(Array(9).fill(null));
+  const [aestheticCanvasRefs, setAestheticCanvasRefs] = useState<(HTMLCanvasElement | null)[]>(Array(9).fill(null));
+
+  // Separate history for each palette type
+  const manualHistory = useHistory();
+  const aestheticHistory = useHistory();
+
+  // Switch between manual and aesthetic based on current palette type
+  const cells = paletteType === 'manual' ? manualCells : aestheticCells;
+  const setCells = paletteType === 'manual' ? setManualCells : setAestheticCells;
+  const canvasRefs = paletteType === 'manual' ? manualCanvasRefs : aestheticCanvasRefs;
+  const setCanvasRefs = paletteType === 'manual' ? setManualCanvasRefs : setAestheticCanvasRefs;
+  const { saveState, undo, redo, canUndo, canRedo, clearHistory } = paletteType === 'manual' ? manualHistory : aestheticHistory;
+
+  const [manualIsInitialized, setManualIsInitialized] = useState(false);
+  const [aestheticIsInitialized, setAestheticIsInitialized] = useState(false);
+  const isInitialized = paletteType === 'manual' ? manualIsInitialized : aestheticIsInitialized;
+  const setIsInitialized = paletteType === 'manual' ? setManualIsInitialized : setAestheticIsInitialized;
+
   const pendingSaveRef = useRef<boolean>(false); // Prevent duplicate saves
 
   const handleCanvasRef = useCallback((index: number, canvas: HTMLCanvasElement | null) => {
@@ -37,7 +65,7 @@ export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
       newRefs[index] = canvas;
       return newRefs;
     });
-  }, []);
+  }, [setCanvasRefs]);
 
   // Undo/Redo handlers
   const handleUndo = useCallback(() => {
@@ -84,17 +112,29 @@ export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
     }
   }, [redo, canvasRefs]);
 
-  // Save initial blank state when all canvases are ready
+  // Save initial blank state when all canvases are ready for each palette type
   useEffect(() => {
     if (!isInitialized && canvasRefs.every(ref => ref !== null)) {
       setIsInitialized(true);
-      // Save the initial blank state
+      // Save the initial blank state for this palette type
       setTimeout(() => {
         saveState(cells, canvasRefs);
       }, 100);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canvasRefs, isInitialized]); // Only run when canvases are ready, not when cells change
+  }, [canvasRefs, isInitialized, paletteType]); // Run when canvases are ready for each palette type
+
+  // When switching palette types, check if we need to initialize
+  useEffect(() => {
+    // If switching to a palette that hasn't been initialized yet, and canvases exist, initialize it
+    if (!isInitialized && canvasRefs.every(ref => ref !== null)) {
+      setIsInitialized(true);
+      setTimeout(() => {
+        saveState(cells, canvasRefs);
+      }, 100);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paletteType]); // Run when palette type changes
 
   // Keyboard shortcuts for undo/redo
   useEffect(() => {
@@ -339,7 +379,7 @@ export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
       <div className="palette-grid">
         {cells.map((cell, index) => (
           <PaletteCell
-            key={index}
+            key={`${paletteType}-${index}`}
             cell={cell}
             index={index}
             paletteType={paletteType}
