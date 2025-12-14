@@ -4,66 +4,38 @@ import { ImageUploader } from './components/ImageUploader';
 import { PaletteGrid } from './components/PaletteGrid';
 import { Instructions } from './components/Instructions';
 import { ColorHistory } from './components/ColorHistory';
+import { useColorHistory } from './hooks/useColorHistory';
+import { useSavedColors } from './hooks/useSavedColors';
+import { compareColors } from './utils/colorUtils';
 import './App.css';
 
 function App() {
   const [selectedColor, setSelectedColor] = useState<Color | null>(null);
   const [paletteType, setPaletteType] = useState<PaletteType>('manual');
   const [nightMode, setNightMode] = useState<boolean>(false);
-  const [colorHistory, setColorHistory] = useState<Color[]>([]);
-  const [savedColors, setSavedColors] = useState<Color[]>([]);
 
-  const addToHistory = useCallback((color: Color) => {
-    const colorTolerance = 3; // Colors within 3 RGB units are considered the same
-
-    setColorHistory(prev => {
-      // Check if a similar color already exists anywhere in history
-      const exists = prev.some(c => {
-        const diffR = Math.abs(c.r - color.r);
-        const diffG = Math.abs(c.g - color.g);
-        const diffB = Math.abs(c.b - color.b);
-        return diffR <= colorTolerance && diffG <= colorTolerance && diffB <= colorTolerance;
-      });
-
-      if (exists) {
-        // Color already exists (or is very similar), don't add it again
-        return prev;
-      }
-
-      // Add to beginning and keep only last 10
-      const newHistory = [color, ...prev];
-      return newHistory.slice(0, 10);
-    });
-  }, []);
+  // Use custom hooks for color management
+  const { colorHistory, addToHistory } = useColorHistory();
+  const { savedColors, saveColor, removeSavedColor } = useSavedColors();
+  const [autoBlendedColors, setAutoBlendedColors] = useState<Color[]>([]);
 
   const handleColorPicked = useCallback((color: Color) => {
     setSelectedColor(color);
     addToHistory(color);
   }, [addToHistory]);
 
-  const handleSaveColor = useCallback((color: Color) => {
-    const colorTolerance = 3;
+  const handleAutoBlendCompleted = useCallback((colors: Color[]) => {
+    // Deduplicate colors using tolerance-based comparison
+    const uniqueColors: Color[] = [];
 
-    setSavedColors(prev => {
-      // Check if color already exists in saved colors
-      const exists = prev.some(c => {
-        const diffR = Math.abs(c.r - color.r);
-        const diffG = Math.abs(c.g - color.g);
-        const diffB = Math.abs(c.b - color.b);
-        return diffR <= colorTolerance && diffG <= colorTolerance && diffB <= colorTolerance;
-      });
-
-      if (exists) {
-        return prev;
+    colors.forEach(color => {
+      const isDuplicate = uniqueColors.some(existing => compareColors(existing, color));
+      if (!isDuplicate) {
+        uniqueColors.push(color);
       }
-
-      // Add to saved colors (no limit)
-      return [...prev, color];
     });
-  }, []);
 
-  const handleRemoveSavedColor = useCallback((index: number) => {
-    setSavedColors(prev => prev.filter((_, i) => i !== index));
+    setAutoBlendedColors(uniqueColors);
   }, []);
 
   return (
@@ -109,6 +81,7 @@ function App() {
             selectedColor={selectedColor}
             paletteType={paletteType}
             onBlendedColorCreated={addToHistory}
+            onAutoBlendCompleted={handleAutoBlendCompleted}
           />
         </div>
       </div>
@@ -116,9 +89,10 @@ function App() {
       <ColorHistory
         colors={colorHistory}
         savedColors={savedColors}
+        autoBlendedColors={autoBlendedColors}
         onColorSelect={setSelectedColor}
-        onSaveColor={handleSaveColor}
-        onRemoveSavedColor={handleRemoveSavedColor}
+        onSaveColor={saveColor}
+        onRemoveSavedColor={removeSavedColor}
       />
 
       <Instructions paletteType={paletteType} />

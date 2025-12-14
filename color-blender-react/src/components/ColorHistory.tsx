@@ -5,16 +5,18 @@ import { colorToRgbString } from '../utils/colorUtils';
 interface ColorHistoryProps {
   colors: Color[];
   savedColors: Color[];
+  autoBlendedColors: Color[];
   onColorSelect: (color: Color) => void;
   onSaveColor: (color: Color) => void;
   onRemoveSavedColor: (index: number) => void;
 }
 
-type TabType = 'recent' | 'saved';
+type TabType = 'recent' | 'saved' | 'autoblended';
 
 export function ColorHistory({
   colors,
   savedColors,
+  autoBlendedColors,
   onColorSelect,
   onSaveColor,
   onRemoveSavedColor
@@ -35,6 +37,12 @@ export function ColorHistory({
           onClick={() => setActiveTab('saved')}
         >
           Saved Colors {savedColors.length > 0 && `(${savedColors.length})`}
+        </button>
+        <button
+          className={`color-history-tab auto-blend-tab ${activeTab === 'autoblended' ? 'active' : ''}`}
+          onClick={() => setActiveTab('autoblended')}
+        >
+          Auto-Blended {autoBlendedColors.length > 0 && `(${autoBlendedColors.length})`}
         </button>
       </div>
 
@@ -65,7 +73,7 @@ export function ColorHistory({
               ))
             )}
           </div>
-        ) : (
+        ) : activeTab === 'saved' ? (
           <div className="color-history-grid">
             {savedColors.length === 0 ? (
               <div className="color-history-empty">
@@ -86,6 +94,32 @@ export function ColorHistory({
                     title="Remove this color"
                   >
                     ×
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        ) : (
+          <div className="color-history-grid">
+            {autoBlendedColors.length === 0 ? (
+              <div className="color-history-empty">
+                Use Auto Blend button to generate blended colors
+              </div>
+            ) : (
+              autoBlendedColors.map((color, index) => (
+                <div key={`autoblended-${color.r}-${color.g}-${color.b}-${index}`} className="color-item-wrapper">
+                  <button
+                    className="color-history-item"
+                    style={{ backgroundColor: colorToRgbString(color) }}
+                    onClick={() => onColorSelect(color)}
+                    title={`RGB(${color.r}, ${color.g}, ${color.b})`}
+                  />
+                  <button
+                    className="color-save-btn"
+                    onClick={() => onSaveColor(color)}
+                    title="Save this color"
+                  >
+                    +
                   </button>
                 </div>
               ))

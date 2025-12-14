@@ -15,9 +15,10 @@ interface PaletteGridProps {
   selectedColor: Color | null;
   paletteType: PaletteType;
   onBlendedColorCreated?: (color: Color) => void;
+  onAutoBlendCompleted?: (colors: Color[]) => void;
 }
 
-export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated }: PaletteGridProps) {
+export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated, onAutoBlendCompleted }: PaletteGridProps) {
   // Separate state for each palette type
   const [manualCells, setManualCells] = useState<PaletteCellType[]>(
     Array(9).fill(null).map(() => ({
@@ -408,6 +409,254 @@ export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated 
     exportPaletteAsImage(canvasRefs);
   };
 
+  const handleAutoBlend = () => {
+    // Array to collect all blended colors
+    const blendedColors: Color[] = [];
+
+    // Track if any changes were made
+    let hasChanges = false;
+
+    if (paletteType === 'aesthetic') {
+      // For aesthetic mode: blend corners first, then update edges and center using auto-fill logic
+      const newCells = [...cells];
+
+      // Step 1: Blend all corner cells (0, 2, 6, 8)
+      AESTHETIC_CORNERS.forEach(cornerIndex => {
+        const canvas = canvasRefs[cornerIndex];
+        if (!canvas) return;
+
+        const cell = newCells[cornerIndex];
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Skip if corner has no colors
+        if (!cell.color1) return;
+
+        // Check if this cell has multiple colors (needs blending)
+        if (cell.color2 || cell.color3 || cell.color4) {
+          hasChanges = true;
+        }
+
+        // Calculate median color for this corner
+        let medianR: number, medianG: number, medianB: number;
+
+        if (cell.hasAllFourColors && cell.color2 && cell.color3 && cell.color4) {
+          medianR = Math.round((cell.color1.r + cell.color2.r + cell.color3.r + cell.color4.r) / 4);
+          medianG = Math.round((cell.color1.g + cell.color2.g + cell.color3.g + cell.color4.g) / 4);
+          medianB = Math.round((cell.color1.b + cell.color2.b + cell.color3.b + cell.color4.b) / 4);
+        } else if (cell.color3) {
+          medianR = Math.round((cell.color1.r + cell.color2!.r + cell.color3.r) / 3);
+          medianG = Math.round((cell.color1.g + cell.color2!.g + cell.color3.g) / 3);
+          medianB = Math.round((cell.color1.b + cell.color2!.b + cell.color3.b) / 3);
+        } else if (cell.color2) {
+          medianR = Math.round((cell.color1.r + cell.color2.r) / 2);
+          medianG = Math.round((cell.color1.g + cell.color2.g) / 2);
+          medianB = Math.round((cell.color1.b + cell.color2.b) / 2);
+        } else {
+          medianR = cell.color1.r;
+          medianG = cell.color1.g;
+          medianB = cell.color1.b;
+        }
+
+        // Fill corner cell with median color
+        ctx.fillStyle = `rgb(${medianR}, ${medianG}, ${medianB})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Collect blended color
+        const blendedColor = { r: medianR, g: medianG, b: medianB };
+        blendedColors.push(blendedColor);
+
+        // Update cell data to reflect blended state (only color1, rest null)
+        newCells[cornerIndex] = {
+          color1: blendedColor,
+          color2: null,
+          color3: null,
+          color4: null,
+          hasAllFourColors: false
+        };
+      });
+
+      // Step 2: Update aesthetic palette (fills edges and center)
+      const updatedCells = updateAestheticPalette(newCells);
+      // Don't set cells here - we'll do it after blending is complete to avoid multiple state updates
+
+      // Step 3: Blend the edge cells visually and update their cell data
+      setTimeout(() => {
+        const finalCells = [...updatedCells];
+        const edgeColors: Color[] = [];
+
+        // First, blend all edge cells (not corners, not center)
+        Object.keys(AESTHETIC_EDGES).forEach(edgeIndexStr => {
+          const index = parseInt(edgeIndexStr);
+          const canvas = canvasRefs[index];
+          const cell = finalCells[index];
+
+          if (!canvas || !cell.color1) return;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+
+          // Calculate median for edge cell
+          let medianR: number, medianG: number, medianB: number;
+
+          if (cell.color2) {
+            medianR = Math.round((cell.color1.r + cell.color2.r) / 2);
+            medianG = Math.round((cell.color1.g + cell.color2.g) / 2);
+            medianB = Math.round((cell.color1.b + cell.color2.b) / 2);
+
+            // Check if this edge cell actually needs blending
+            // (i.e., color1 is different from the blended result)
+            const needsBlending =
+              cell.color1.r !== medianR ||
+              cell.color1.g !== medianG ||
+              cell.color1.b !== medianB;
+
+            if (needsBlending) {
+              hasChanges = true;
+            }
+          } else {
+            medianR = cell.color1.r;
+            medianG = cell.color1.g;
+            medianB = cell.color1.b;
+          }
+
+          // Fill edge cell with median color
+          ctx.fillStyle = `rgb(${medianR}, ${medianG}, ${medianB})`;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          // Store the blended edge color
+          const blendedColor = { r: medianR, g: medianG, b: medianB };
+          edgeColors.push(blendedColor);
+          blendedColors.push(blendedColor);
+
+          // Update edge cell data to reflect blended state
+          finalCells[index] = {
+            color1: blendedColor,
+            color2: null,
+            color3: null,
+            color4: null,
+            hasAllFourColors: false
+          };
+        });
+
+        // Step 4: Now blend the center cell with the 4 blended edge colors
+        if (edgeColors.length === 4) {
+          // Calculate the median of all 4 edge colors
+          const medianR = Math.round((edgeColors[0].r + edgeColors[1].r + edgeColors[2].r + edgeColors[3].r) / 4);
+          const medianG = Math.round((edgeColors[0].g + edgeColors[1].g + edgeColors[2].g + edgeColors[3].g) / 4);
+          const medianB = Math.round((edgeColors[0].b + edgeColors[1].b + edgeColors[2].b + edgeColors[3].b) / 4);
+
+          const centerBlendedColor = { r: medianR, g: medianG, b: medianB };
+          blendedColors.push(centerBlendedColor);
+
+          // Update center cell data to reflect blended state (only color1)
+          finalCells[AESTHETIC_CENTER] = {
+            color1: centerBlendedColor,
+            color2: null,
+            color3: null,
+            color4: null,
+            hasAllFourColors: false
+          };
+
+          // Blend the center cell visually
+          const centerCanvas = canvasRefs[AESTHETIC_CENTER];
+          if (centerCanvas) {
+            const ctx = centerCanvas.getContext('2d');
+            if (ctx) {
+              ctx.fillStyle = `rgb(${medianR}, ${medianG}, ${medianB})`;
+              ctx.fillRect(0, 0, centerCanvas.width, centerCanvas.height);
+            }
+          }
+        }
+
+        // Update state with final blended cells
+        setCells(finalCells);
+
+        // Save state after everything is done (only if changes were made)
+        setTimeout(() => {
+          if (hasChanges) {
+            saveState(finalCells, canvasRefs);
+          }
+
+          // Call callback with all blended colors
+          if (onAutoBlendCompleted && blendedColors.length > 0) {
+            onAutoBlendCompleted(blendedColors);
+          }
+        }, 10);
+      }, 50);
+    } else {
+      // Manual mode: blend all cells that have colors
+      const newCells = [...cells];
+
+      canvasRefs.forEach((canvas, index) => {
+        if (!canvas) return;
+
+        const cell = newCells[index];
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Skip if cell has no colors
+        if (!cell.color1) return;
+
+        // Check if this cell has multiple colors (needs blending)
+        if (cell.color2 || cell.color3 || cell.color4) {
+          hasChanges = true;
+        }
+
+        // Calculate the median color based on how many colors the cell has
+        let medianR: number, medianG: number, medianB: number;
+
+        if (cell.hasAllFourColors && cell.color2 && cell.color3 && cell.color4) {
+          medianR = Math.round((cell.color1.r + cell.color2.r + cell.color3.r + cell.color4.r) / 4);
+          medianG = Math.round((cell.color1.g + cell.color2.g + cell.color3.g + cell.color4.g) / 4);
+          medianB = Math.round((cell.color1.b + cell.color2.b + cell.color3.b + cell.color4.b) / 4);
+        } else if (cell.color3) {
+          medianR = Math.round((cell.color1.r + cell.color2!.r + cell.color3.r) / 3);
+          medianG = Math.round((cell.color1.g + cell.color2!.g + cell.color3.g) / 3);
+          medianB = Math.round((cell.color1.b + cell.color2!.b + cell.color3.b) / 3);
+        } else if (cell.color2) {
+          medianR = Math.round((cell.color1.r + cell.color2.r) / 2);
+          medianG = Math.round((cell.color1.g + cell.color2.g) / 2);
+          medianB = Math.round((cell.color1.b + cell.color2.b) / 2);
+        } else {
+          medianR = cell.color1.r;
+          medianG = cell.color1.g;
+          medianB = cell.color1.b;
+        }
+
+        // Collect blended color
+        const blendedColor = { r: medianR, g: medianG, b: medianB };
+        blendedColors.push(blendedColor);
+
+        // Update cell data to reflect blended state (only color1, rest null)
+        newCells[index] = {
+          color1: blendedColor,
+          color2: null,
+          color3: null,
+          color4: null,
+          hasAllFourColors: false
+        };
+
+        // Fill the entire cell with the median color
+        ctx.fillStyle = `rgb(${medianR}, ${medianG}, ${medianB})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      });
+
+      // Update cells state
+      setCells(newCells);
+
+      // Save state after auto-blend (only if changes were made)
+      if (hasChanges) {
+        saveState(newCells, canvasRefs);
+      }
+
+      // Call callback with all blended colors
+      if (onAutoBlendCompleted && blendedColors.length > 0) {
+        onAutoBlendCompleted(blendedColors);
+      }
+    }
+  };
+
   return (
     <div className="grid-section">
       <h2>Color Palette</h2>
@@ -433,6 +682,9 @@ export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated 
           </button>
           <button onClick={handleRedo} disabled={!canRedo} className="btn" title="Redo (Ctrl+Y)">
             ↷ Redo
+          </button>
+          <button onClick={handleAutoBlend} className="btn btn-blend" title="Auto-blend all cells with colors">
+            ⚡ Auto Blend
           </button>
         </div>
         <div className="control-group">

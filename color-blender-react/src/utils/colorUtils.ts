@@ -1,10 +1,25 @@
 import { Color } from '../types';
+import { COLOR_TOLERANCE } from '../constants';
 
 export function rgbToHex(r: number, g: number, b: number): string {
   return '#' + [r, g, b].map(x => {
     const hex = x.toString(16);
     return hex.length === 1 ? '0' + hex : hex;
   }).join('');
+}
+
+/**
+ * Compare two colors to see if they are similar within a tolerance
+ * @param c1 First color
+ * @param c2 Second color
+ * @param tolerance RGB unit tolerance (default: COLOR_TOLERANCE constant)
+ * @returns true if colors are within tolerance
+ */
+export function compareColors(c1: Color, c2: Color, tolerance: number = COLOR_TOLERANCE): boolean {
+  const diffR = Math.abs(c1.r - c2.r);
+  const diffG = Math.abs(c1.g - c2.g);
+  const diffB = Math.abs(c1.b - c2.b);
+  return diffR <= tolerance && diffG <= tolerance && diffB <= tolerance;
 }
 
 export function colorDistance(c1: Color, c2: Color): number {

@@ -296,6 +296,20 @@ header p {
     border-color: #764ba2;
 }
 
+.btn-blend {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    border-color: #f5576c;
+    font-weight: 600;
+}
+
+.btn-blend:hover {
+    background: linear-gradient(135deg, #f5a3ff 0%, #ff677c 100%);
+    border-color: #ff677c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+}
+
 /* Instructions */
 .instructions {
     background: #f8f9fa;
@@ -612,6 +626,16 @@ body:has(.night-mode) {
     border-color: #7a8aff;
 }
 
+.night-mode .btn-blend {
+    background: linear-gradient(135deg, #d083eb 0%, #d5475c 100%);
+    border-color: #d5475c;
+}
+
+.night-mode .btn-blend:hover {
+    background: linear-gradient(135deg, #e093fb 0%, #e5576c 100%);
+    border-color: #e5576c;
+}
+
 .night-mode .instructions {
     background: #1a1a3e;
     border-color: #3a3a5e;
@@ -665,6 +689,28 @@ body:has(.night-mode) {
 .color-history-tab.active {
     background: #667eea;
     color: white;
+}
+
+.color-history-tab.auto-blend-tab {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    border: 2px solid #f5576c;
+    font-weight: 600;
+}
+
+.color-history-tab.auto-blend-tab.active {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    border: 2px solid #f5576c;
+    font-weight: 600;
+    box-shadow: 0 0 0 3px rgba(245, 87, 108, 0.3);
+}
+
+.color-history-tab.auto-blend-tab:hover {
+    background: linear-gradient(135deg, #f5a3ff 0%, #ff677c 100%);
+    border-color: #ff677c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
 }
 
 .color-history-content {
@@ -773,6 +819,28 @@ body:has(.night-mode) {
 .night-mode .color-history-tab.active {
     background: #667eea;
     color: white;
+}
+
+.night-mode .color-history-tab.auto-blend-tab {
+    background: linear-gradient(135deg, #d083eb 0%, #d5475c 100%);
+    color: white;
+    border: 2px solid #d5475c;
+    font-weight: 600;
+}
+
+.night-mode .color-history-tab.auto-blend-tab.active {
+    background: linear-gradient(135deg, #d083eb 0%, #d5475c 100%);
+    color: white;
+    border: 2px solid #d5475c;
+    font-weight: 600;
+    box-shadow: 0 0 0 3px rgba(213, 71, 92, 0.3);
+}
+
+.night-mode .color-history-tab.auto-blend-tab:hover {
+    background: linear-gradient(135deg, #e093fb 0%, #e5576c 100%);
+    border-color: #e5576c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(213, 71, 92, 0.3);
 }
 
 .night-mode .color-history h3 {
