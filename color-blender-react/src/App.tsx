@@ -11,6 +11,7 @@ function App() {
   const [paletteType, setPaletteType] = useState<PaletteType>('manual');
   const [nightMode, setNightMode] = useState<boolean>(false);
   const [colorHistory, setColorHistory] = useState<Color[]>([]);
+  const [savedColors, setSavedColors] = useState<Color[]>([]);
 
   const addToHistory = useCallback((color: Color) => {
     const colorTolerance = 3; // Colors within 3 RGB units are considered the same
@@ -39,6 +40,31 @@ function App() {
     setSelectedColor(color);
     addToHistory(color);
   }, [addToHistory]);
+
+  const handleSaveColor = useCallback((color: Color) => {
+    const colorTolerance = 3;
+
+    setSavedColors(prev => {
+      // Check if color already exists in saved colors
+      const exists = prev.some(c => {
+        const diffR = Math.abs(c.r - color.r);
+        const diffG = Math.abs(c.g - color.g);
+        const diffB = Math.abs(c.b - color.b);
+        return diffR <= colorTolerance && diffG <= colorTolerance && diffB <= colorTolerance;
+      });
+
+      if (exists) {
+        return prev;
+      }
+
+      // Add to saved colors (no limit)
+      return [...prev, color];
+    });
+  }, []);
+
+  const handleRemoveSavedColor = useCallback((index: number) => {
+    setSavedColors(prev => prev.filter((_, i) => i !== index));
+  }, []);
 
   return (
     <div className={`container ${nightMode ? 'night-mode' : ''}`}>
@@ -89,7 +115,10 @@ function App() {
 
       <ColorHistory
         colors={colorHistory}
+        savedColors={savedColors}
         onColorSelect={setSelectedColor}
+        onSaveColor={handleSaveColor}
+        onRemoveSavedColor={handleRemoveSavedColor}
       />
 
       <Instructions paletteType={paletteType} />

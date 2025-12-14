@@ -142,11 +142,34 @@ The application has been fully migrated to React + TypeScript with modular archi
 - [x] **Stale Closure Fix**: Fixed mobile selectedColor bug by implementing fresh closures in useEffect
 - [x] **History Integration**: Maintains smart state saving with new interaction model
 
+### Phase 11: 4-Color Manual Palette & Advanced Features (v2.4) ✅
+- [x] **4-Color Manual Cells**: Each manual palette cell now supports up to 4 colors
+- [x] **Separate Palette States**: Manual and aesthetic palettes maintain completely independent states
+- [x] **Independent Canvas Refs**: Each palette type has its own canvas references for proper isolation
+- [x] **Independent Undo/Redo Histories**: Separate history tracking for manual and aesthetic palettes
+- [x] **Initialization Tracking**: Per-palette initialization ensures first action is undoable
+- [x] **Color History Feature**: Displays last 10 unique colors (picked or blended)
+- [x] **Tolerance-Based Deduplication**: Colors within ±3 RGB units considered identical
+- [x] **Deterministic Blending**: Same source colors always produce identical results
+- [x] **Smart Aesthetic Edges**: Edge cells with matching adjacent corners contain only one color
+- [x] **Click to Reselect**: Click color history items to reselect them for reuse
+- [x] **Layout Stability**: Color history positioned below palette grid, prevents layout shift
+
+### Phase 12: Tabbed Color System with Saved Colors (v2.5) ✅
+- [x] **Tabbed Interface**: Recent Colors and Saved Colors in separate tabs
+- [x] **Save Color Functionality**: + button on recent colors to save favorites
+- [x] **Remove Saved Colors**: × button to remove colors from saved collection
+- [x] **Tab Count Indicators**: Shows number of colors in each tab
+- [x] **Unlimited Saved Colors**: No limit on saved colors (unlike recent's 10-color cap)
+- [x] **Duplicate Prevention**: Can't save the same color twice in saved collection
+- [x] **Active Tab Highlighting**: Visual indicator for currently selected tab
+- [x] **Night Mode Support**: Full theme integration for tabs and buttons
+
 ---
 
 ## Technical Implementation Details
 
-### File Structure (v2.3 - React + TypeScript)
+### File Structure (v2.5 - React + TypeScript)
 ```
 Color-Blender/
 ├── color-blender-react/          # React application root
@@ -155,7 +178,7 @@ Color-Blender/
 │   │   │   ├── ImageUploader.tsx
 │   │   │   ├── PaletteCell.tsx
 │   │   │   ├── PaletteGrid.tsx
-│   │   │   ├── ModeToggle.tsx
+│   │   │   ├── ColorHistory.tsx  # Color history display
 │   │   │   └── Instructions.tsx
 │   │   ├── hooks/               # Custom React hooks
 │   │   │   └── useHistory.ts    # Undo/redo state management
@@ -228,11 +251,40 @@ ctx.fill()
 
 #### Aesthetic Palette Auto-Fill (v2.1+)
 - **Corner cells (0, 2, 6, 8)**: User sets ONE color each
-- **Edge cells (1, 3, 5, 7)**: Auto-filled with TWO colors from adjacent corners
+- **Edge cells (1, 3, 5, 7)**: Auto-filled with TWO colors from adjacent corners (or one if corners match)
 - **Center cell (4)**: Auto-filled with all FOUR corner colors in 2x2 grid
 - **Smart Reset (v2.1)**: Updating one corner only resets affected edges, not entire palette
+- **Smart Edge Optimization (v2.4)**: If adjacent corners have same color, edge contains only one copy
 - **Error Messaging**: Clicking unfilled edge/center cells shows helpful error message
 - Automatic updates when any corner color changes
+
+#### Palette Separation (v2.4+)
+- **Independent States**: Manual and aesthetic palettes maintain completely separate cell states
+- **Independent Canvas Refs**: Each palette type has its own canvas reference arrays
+- **Independent Histories**: Separate undo/redo stacks for each palette type
+- **Key-Based Remounting**: Cells remount when switching palettes (key=`${paletteType}-${index}`)
+- **Per-Palette Initialization**: Each palette tracks its own initialization for proper undo support
+
+#### Color History System (v2.4+)
+- **Automatic Tracking**: Captures colors from both picking (eyedropper) and blending
+- **Tolerance-Based Deduplication**: Colors within ±3 RGB units on all channels considered identical
+- **Deterministic Blending**: Uses stored cell colors for calculation, ensuring consistency
+- **10-Color Limit**: Shows most recent 10 unique colors
+- **Click to Reselect**: Click any history item to set it as selected color
+- **Visual Display**: Grid layout with color swatches, RGB tooltips
+- **Always Visible**: Remains on screen to prevent layout shifts
+
+#### Tabbed Color System (v2.5+)
+- **Dual Tab Interface**: Switch between "Recent Colors" and "Saved Colors"
+- **Recent Colors Tab**: Auto-populated with last 10 colors (picked or blended)
+- **Saved Colors Tab**: User-curated collection of favorite colors (unlimited)
+- **Save Functionality**: Click + button on recent colors to add to saved collection
+- **Remove Functionality**: Click × button on saved colors to remove from collection
+- **Tab Counters**: Display number of colors in each tab (e.g., "Recent Colors (5)")
+- **Active State**: Highlighted tab shows which collection is currently visible
+- **Duplicate Prevention**: Can't save same color twice (±3 RGB tolerance)
+- **Persistent Actions**: Save/remove buttons appear on hover
+- **Full Night Mode**: Tabs, buttons, and all elements support dark theme
 
 ---
 
@@ -262,9 +314,10 @@ ctx.fill()
   - Option to switch between 2x2, 3x3, 4x4, 5x5
   - Saved preference in localStorage
 
-- [ ] **Color History Panel**
+- [x] **Color History Panel** ✅ (Completed in v2.4)
   - Show last 10 picked colors
   - Quick re-select from history
+  - Tolerance-based deduplication
 
 - [ ] **Blend Modes**
   - Different blending algorithms (multiply, overlay, etc.)
@@ -403,7 +456,32 @@ export default defineConfig({
 
 ## Version History
 
-### v2.3 - December 11, 2025 (Current)
+### v2.5 - December 13, 2025 (Current)
+**Tabbed Color System with Saved Colors**
+- Added tabbed interface to color history section
+- Created "Recent Colors" tab for last 10 auto-tracked colors
+- Created "Saved Colors" tab for unlimited user-curated favorites
+- Implemented + button to save colors from recent to saved
+- Implemented × button to remove colors from saved collection
+- Added tab count indicators showing number of colors in each tab
+- Full duplicate prevention across both tabs (±3 RGB tolerance)
+- Complete night mode integration for tabs and action buttons
+- Smooth tab switching with active state highlighting
+
+### v2.4 - December 13, 2025
+**4-Color Manual Palette & Advanced Features**
+- Extended manual palette to support 4 colors per cell (matching aesthetic mode)
+- Implemented complete separation of manual and aesthetic palette states
+- Each palette type maintains independent canvas refs and undo/redo histories
+- Added per-palette initialization tracking for proper undo support
+- Created Color History feature showing last 10 unique colors
+- Implemented tolerance-based deduplication (±3 RGB units)
+- Made blending deterministic - same colors always produce identical results
+- Optimized aesthetic edges to contain single color when adjacent corners match
+- Added click-to-reselect functionality for color history
+- Positioned color history below palette grid with stable layout
+
+### v2.3 - December 11, 2025
 **Interaction System Overhaul**
 - Changed color adding from double-click to single fast click
 - Implemented click-and-hold (200ms) to activate blending mode
@@ -500,7 +578,7 @@ npm run preview      # Preview production build
 ### Testing Checklist
 - [x] Test image upload with various formats (PNG, JPG, GIF)
 - [x] Test eyedropper on different image sizes
-- [x] Test Manual Palette mode (2 colors per cell)
+- [x] Test Manual Palette mode (4 colors per cell) (v2.4)
 - [x] Test Aesthetic Palette mode (corner auto-fill)
 - [x] Test fast click color adding (v2.3)
 - [x] Test click-and-hold blending interaction (v2.3)
@@ -512,6 +590,17 @@ npm run preview      # Preview production build
 - [x] Test clean solid blending (no smudging)
 - [x] Test undo/redo functionality (v2.2)
 - [x] Test undo/redo keyboard shortcuts (v2.2)
+- [x] Test separate palette states (v2.4)
+- [x] Test independent undo/redo per palette (v2.4)
+- [x] Test color history tracking (v2.4)
+- [x] Test color history deduplication (v2.4)
+- [x] Test deterministic blending (v2.4)
+- [x] Test aesthetic edge optimization (v2.4)
+- [x] Test tabbed color interface (v2.5)
+- [x] Test saving colors from recent to saved (v2.5)
+- [x] Test removing saved colors (v2.5)
+- [x] Test tab switching behavior (v2.5)
+- [x] Test saved colors duplicate prevention (v2.5)
 - [x] Test save/export functionality
 - [x] Test on different browsers
 - [x] Test responsive design on mobile
@@ -539,8 +628,8 @@ Free to use and modify for personal and commercial projects.
 
 ---
 
-**Last Updated**: December 11, 2025
-**Current Version**: v2.3 - Interaction System Overhaul
+**Last Updated**: December 13, 2025
+**Current Version**: v2.5 - Tabbed Color System with Saved Colors
 **Status**: Production Ready & Deployed ✅
 **Live on**: GitHub Pages
 **Next Milestone**: Load saved palettes feature or palette library system

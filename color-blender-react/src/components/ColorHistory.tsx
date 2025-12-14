@@ -1,30 +1,96 @@
+import { useState } from 'react';
 import { Color } from '../types';
 import { colorToRgbString } from '../utils/colorUtils';
 
 interface ColorHistoryProps {
   colors: Color[];
+  savedColors: Color[];
   onColorSelect: (color: Color) => void;
+  onSaveColor: (color: Color) => void;
+  onRemoveSavedColor: (index: number) => void;
 }
 
-export function ColorHistory({ colors, onColorSelect }: ColorHistoryProps) {
+type TabType = 'recent' | 'saved';
+
+export function ColorHistory({
+  colors,
+  savedColors,
+  onColorSelect,
+  onSaveColor,
+  onRemoveSavedColor
+}: ColorHistoryProps) {
+  const [activeTab, setActiveTab] = useState<TabType>('recent');
+
   return (
     <div className="color-history">
-      <h3>Recent Colors {colors.length > 0 && `(${colors.length})`}</h3>
-      <div className="color-history-grid">
-        {colors.length === 0 ? (
-          <div className="color-history-empty">
-            Pick or blend colors to see them here
+      <div className="color-history-tabs">
+        <button
+          className={`color-history-tab ${activeTab === 'recent' ? 'active' : ''}`}
+          onClick={() => setActiveTab('recent')}
+        >
+          Recent Colors {colors.length > 0 && `(${colors.length})`}
+        </button>
+        <button
+          className={`color-history-tab ${activeTab === 'saved' ? 'active' : ''}`}
+          onClick={() => setActiveTab('saved')}
+        >
+          Saved Colors {savedColors.length > 0 && `(${savedColors.length})`}
+        </button>
+      </div>
+
+      <div className="color-history-content">
+        {activeTab === 'recent' ? (
+          <div className="color-history-grid">
+            {colors.length === 0 ? (
+              <div className="color-history-empty">
+                Pick or blend colors to see them here
+              </div>
+            ) : (
+              colors.map((color, index) => (
+                <div key={`${color.r}-${color.g}-${color.b}-${index}`} className="color-item-wrapper">
+                  <button
+                    className="color-history-item"
+                    style={{ backgroundColor: colorToRgbString(color) }}
+                    onClick={() => onColorSelect(color)}
+                    title={`RGB(${color.r}, ${color.g}, ${color.b})`}
+                  />
+                  <button
+                    className="color-save-btn"
+                    onClick={() => onSaveColor(color)}
+                    title="Save this color"
+                  >
+                    +
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         ) : (
-          colors.map((color, index) => (
-            <button
-              key={`${color.r}-${color.g}-${color.b}-${index}`}
-              className="color-history-item"
-              style={{ backgroundColor: colorToRgbString(color) }}
-              onClick={() => onColorSelect(color)}
-              title={`RGB(${color.r}, ${color.g}, ${color.b})`}
-            />
-          ))
+          <div className="color-history-grid">
+            {savedColors.length === 0 ? (
+              <div className="color-history-empty">
+                Save colors from the Recent tab to keep them here
+              </div>
+            ) : (
+              savedColors.map((color, index) => (
+                <div key={`saved-${color.r}-${color.g}-${color.b}-${index}`} className="color-item-wrapper">
+                  <button
+                    className="color-history-item"
+                    style={{ backgroundColor: colorToRgbString(color) }}
+                    onClick={() => onColorSelect(color)}
+                    title={`RGB(${color.r}, ${color.g}, ${color.b})`}
+                  />
+                  <button
+                    className="color-remove-btn"
+                    onClick={() => onRemoveSavedColor(index)}
+                    title="Remove this color"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         )}
       </div>
     </div>
