@@ -14,9 +14,10 @@ import { useHistory } from '../hooks/useHistory';
 interface PaletteGridProps {
   selectedColor: Color | null;
   paletteType: PaletteType;
+  onBlendedColorCreated?: (color: Color) => void;
 }
 
-export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
+export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated }: PaletteGridProps) {
   // Separate state for each palette type
   const [manualCells, setManualCells] = useState<PaletteCellType[]>(
     Array(9).fill(null).map(() => ({
@@ -203,13 +204,30 @@ export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
         const corner2IsBlended = corner2.color1 && !corner2.color2 && !corner2.color3 && !corner2.color4;
 
         if (corner1IsBlended && corner2IsBlended) {
-          newCells[edgeIndex] = {
-            color1: { ...corner1.color1! },
-            color2: { ...corner2.color1! },
-            color3: null,
-            color4: null,
-            hasAllFourColors: false
-          };
+          // Check if both corners have the same color
+          const sameColor = corner1.color1!.r === corner2.color1!.r &&
+                           corner1.color1!.g === corner2.color1!.g &&
+                           corner1.color1!.b === corner2.color1!.b;
+
+          if (sameColor) {
+            // If same color, edge cell should only contain one copy
+            newCells[edgeIndex] = {
+              color1: { ...corner1.color1! },
+              color2: null,
+              color3: null,
+              color4: null,
+              hasAllFourColors: false
+            };
+          } else {
+            // Different colors, edge cell contains both
+            newCells[edgeIndex] = {
+              color1: { ...corner1.color1! },
+              color2: { ...corner2.color1! },
+              color3: null,
+              color4: null,
+              hasAllFourColors: false
+            };
+          }
         } else {
           // Clear edge if corners aren't ready
           newCells[edgeIndex] = {
@@ -259,13 +277,30 @@ export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
         const corner2IsBlended = corner2.color1 && !corner2.color2 && !corner2.color3 && !corner2.color4;
 
         if (corner1IsBlended && corner2IsBlended) {
-          newCells[index] = {
-            color1: { ...corner1.color1! },
-            color2: { ...corner2.color1! },
-            color3: null,
-            color4: null,
-            hasAllFourColors: false
-          };
+          // Check if both corners have the same color
+          const sameColor = corner1.color1!.r === corner2.color1!.r &&
+                           corner1.color1!.g === corner2.color1!.g &&
+                           corner1.color1!.b === corner2.color1!.b;
+
+          if (sameColor) {
+            // If same color, edge cell should only contain one copy
+            newCells[index] = {
+              color1: { ...corner1.color1! },
+              color2: null,
+              color3: null,
+              color4: null,
+              hasAllFourColors: false
+            };
+          } else {
+            // Different colors, edge cell contains both
+            newCells[index] = {
+              color1: { ...corner1.color1! },
+              color2: { ...corner2.color1! },
+              color3: null,
+              color4: null,
+              hasAllFourColors: false
+            };
+          }
         } else {
           // Clear edge if corners aren't ready
           newCells[index] = {
@@ -387,6 +422,7 @@ export function PaletteGrid({ selectedColor, paletteType }: PaletteGridProps) {
             isCornerCell={AESTHETIC_CORNERS.includes(index as 0 | 2 | 6 | 8)}
             onCellUpdate={handleCellUpdate}
             onCanvasRef={handleCanvasRef}
+            onBlendedColorCreated={onBlendedColorCreated}
           />
         ))}
       </div>

@@ -630,9 +630,87 @@ body:has(.night-mode) {
     color: #b0b0b0;
 }
 
+/* Color History */
+.color-history {
+    background: #f8f9fa;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    min-height: 130px;
+}
+
+.color-history h3 {
+    color: #333;
+    font-size: 1.2em;
+    margin-bottom: 15px;
+}
+
+.color-history-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 10px;
+    min-height: 60px;
+}
+
+.color-history-empty {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-style: italic;
+    padding: 20px;
+}
+
+.color-history-item {
+    width: 100%;
+    aspect-ratio: 1;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.color-history-item:hover {
+    transform: scale(1.1);
+    border-color: #667eea;
+    box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+}
+
+.color-history-item:active {
+    transform: scale(0.95);
+}
+
+/* Night Mode - Color History */
+.night-mode .color-history {
+    background: #2d2d2d;
+}
+
+.night-mode .color-history h3 {
+    color: #e0e0e0;
+}
+
+.night-mode .color-history-empty {
+    color: #666;
+}
+
+.night-mode .color-history-item {
+    border-color: #444;
+}
+
+.night-mode .color-history-item:hover {
+    border-color: #667eea;
+}
+
 @media (max-width: 768px) {
     .night-mode-toggle {
         font-size: 1.2em;
         padding: 8px 12px;
+    }
+
+    .color-history-grid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
     }
 }
