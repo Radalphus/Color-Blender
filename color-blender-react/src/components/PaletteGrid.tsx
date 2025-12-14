@@ -420,6 +420,46 @@ export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated,
       // For aesthetic mode: blend corners first, then update edges and center using auto-fill logic
       const newCells = [...cells];
 
+      // First, check current edges to see if they need blending (before auto-fill changes them)
+      Object.keys(AESTHETIC_EDGES).forEach(edgeIndexStr => {
+        const index = parseInt(edgeIndexStr);
+        const cell = cells[index];
+
+        if (cell.color1 && cell.color2) {
+          // Edge has 2 colors - check if already blended
+          const medianR = Math.round((cell.color1.r + cell.color2.r) / 2);
+          const medianG = Math.round((cell.color1.g + cell.color2.g) / 2);
+          const medianB = Math.round((cell.color1.b + cell.color2.b) / 2);
+
+          const needsBlending =
+            cell.color1.r !== medianR ||
+            cell.color1.g !== medianG ||
+            cell.color1.b !== medianB;
+
+          if (needsBlending) {
+            hasChanges = true;
+          }
+        }
+      });
+
+      // Check center cell (it has 4 colors that blend to 1)
+      const centerCell = cells[AESTHETIC_CENTER];
+      if (centerCell.hasAllFourColors && centerCell.color1 && centerCell.color2 && centerCell.color3 && centerCell.color4) {
+        // Center has 4 colors - check if already blended
+        const medianR = Math.round((centerCell.color1.r + centerCell.color2.r + centerCell.color3.r + centerCell.color4.r) / 4);
+        const medianG = Math.round((centerCell.color1.g + centerCell.color2.g + centerCell.color3.g + centerCell.color4.g) / 4);
+        const medianB = Math.round((centerCell.color1.b + centerCell.color2.b + centerCell.color3.b + centerCell.color4.b) / 4);
+
+        const needsBlending =
+          centerCell.color1.r !== medianR ||
+          centerCell.color1.g !== medianG ||
+          centerCell.color1.b !== medianB;
+
+        if (needsBlending) {
+          hasChanges = true;
+        }
+      }
+
       // Step 1: Blend all corner cells (0, 2, 6, 8)
       AESTHETIC_CORNERS.forEach(cornerIndex => {
         const canvas = canvasRefs[cornerIndex];
@@ -503,17 +543,7 @@ export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated,
             medianR = Math.round((cell.color1.r + cell.color2.r) / 2);
             medianG = Math.round((cell.color1.g + cell.color2.g) / 2);
             medianB = Math.round((cell.color1.b + cell.color2.b) / 2);
-
-            // Check if this edge cell actually needs blending
-            // (i.e., color1 is different from the blended result)
-            const needsBlending =
-              cell.color1.r !== medianR ||
-              cell.color1.g !== medianG ||
-              cell.color1.b !== medianB;
-
-            if (needsBlending) {
-              hasChanges = true;
-            }
+            // Edge checking already done upfront, no need to check again here
           } else {
             medianR = cell.color1.r;
             medianG = cell.color1.g;
@@ -574,8 +604,10 @@ export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated,
 
         // Save state after everything is done (only if changes were made)
         setTimeout(() => {
-          if (hasChanges) {
+          if (hasChanges && !pendingSaveRef.current) {
+            pendingSaveRef.current = true;
             saveState(finalCells, canvasRefs);
+            pendingSaveRef.current = false;
           }
 
           // Call callback with all blended colors
@@ -646,8 +678,10 @@ export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated,
       setCells(newCells);
 
       // Save state after auto-blend (only if changes were made)
-      if (hasChanges) {
+      if (hasChanges && !pendingSaveRef.current) {
+        pendingSaveRef.current = true;
         saveState(newCells, canvasRefs);
+        pendingSaveRef.current = false;
       }
 
       // Call callback with all blended colors
