@@ -12,6 +12,7 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "color-name-list": "^14.11.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

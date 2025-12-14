@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Color } from '../types';
-import { colorToRgbString } from '../utils/colorUtils';
+import { colorToRgbString, getColorName } from '../utils/colorUtils';
 
 interface ColorHistoryProps {
   colors: Color[];
@@ -56,12 +56,15 @@ export function ColorHistory({
             ) : (
               colors.map((color, index) => (
                 <div key={`${color.r}-${color.g}-${color.b}-${index}`} className="color-item-wrapper">
-                  <button
-                    className="color-history-item"
-                    style={{ backgroundColor: colorToRgbString(color) }}
-                    onClick={() => onColorSelect(color)}
-                    title={`RGB(${color.r}, ${color.g}, ${color.b})`}
-                  />
+                  <div className="color-item-content">
+                    <button
+                      className="color-history-item"
+                      style={{ backgroundColor: colorToRgbString(color) }}
+                      onClick={() => onColorSelect(color)}
+                      title={`${getColorName(color, false)}\nRGB(${color.r}, ${color.g}, ${color.b})`}
+                    />
+                    <span className="color-name-label">{getColorName(color, true)}</span>
+                  </div>
                   <button
                     className="color-save-btn"
                     onClick={() => onSaveColor(color)}
@@ -82,12 +85,15 @@ export function ColorHistory({
             ) : (
               savedColors.map((color, index) => (
                 <div key={`saved-${color.r}-${color.g}-${color.b}-${index}`} className="color-item-wrapper">
-                  <button
-                    className="color-history-item"
-                    style={{ backgroundColor: colorToRgbString(color) }}
-                    onClick={() => onColorSelect(color)}
-                    title={`RGB(${color.r}, ${color.g}, ${color.b})`}
-                  />
+                  <div className="color-item-content">
+                    <button
+                      className="color-history-item"
+                      style={{ backgroundColor: colorToRgbString(color) }}
+                      onClick={() => onColorSelect(color)}
+                      title={`${getColorName(color, false)}\nRGB(${color.r}, ${color.g}, ${color.b})`}
+                    />
+                    <span className="color-name-label">{getColorName(color, true)}</span>
+                  </div>
                   <button
                     className="color-remove-btn"
                     onClick={() => onRemoveSavedColor(index)}
@@ -108,12 +114,15 @@ export function ColorHistory({
             ) : (
               autoBlendedColors.map((color, index) => (
                 <div key={`autoblended-${color.r}-${color.g}-${color.b}-${index}`} className="color-item-wrapper">
-                  <button
-                    className="color-history-item"
-                    style={{ backgroundColor: colorToRgbString(color) }}
-                    onClick={() => onColorSelect(color)}
-                    title={`RGB(${color.r}, ${color.g}, ${color.b})`}
-                  />
+                  <div className="color-item-content">
+                    <button
+                      className="color-history-item"
+                      style={{ backgroundColor: colorToRgbString(color) }}
+                      onClick={() => onColorSelect(color)}
+                      title={`${getColorName(color, false)}\nRGB(${color.r}, ${color.g}, ${color.b})`}
+                    />
+                    <span className="color-name-label">{getColorName(color, true)}</span>
+                  </div>
                   <button
                     className="color-save-btn"
                     onClick={() => onSaveColor(color)}

@@ -1,6 +1,6 @@
 import { useRef, ChangeEvent, useState } from 'react';
 import { Color } from '../types';
-import { getColorFromImageData } from '../utils/colorUtils';
+import { getColorFromImageData, getColorName } from '../utils/colorUtils';
 
 interface ImageUploaderProps {
   onColorPicked: (color: Color) => void;
@@ -199,6 +199,7 @@ export function ImageUploader({ onColorPicked, selectedColor }: ImageUploaderPro
             />
             <div className="color-values">
               <span className="color-label">Preview:</span>
+              <span>{getColorName(hoverColor)}</span>
               <span>
                 #{hoverColor.r.toString(16).padStart(2, '0')}{hoverColor.g.toString(16).padStart(2, '0')}{hoverColor.b.toString(16).padStart(2, '0')}
               </span>
@@ -221,6 +222,9 @@ export function ImageUploader({ onColorPicked, selectedColor }: ImageUploaderPro
           />
           <div className="color-values">
             <span className="color-label">Selected Color:</span>
+            {((isUsingTouch && hoverColor) || selectedColor) && (
+              <span>{getColorName((isUsingTouch && hoverColor) || selectedColor!)}</span>
+            )}
             <span>
               {(isUsingTouch && hoverColor)
                 ? `#${hoverColor.r.toString(16).padStart(2, '0')}${hoverColor.g.toString(16).padStart(2, '0')}${hoverColor.b.toString(16).padStart(2, '0')}`

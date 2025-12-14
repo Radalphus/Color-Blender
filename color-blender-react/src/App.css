@@ -661,6 +661,19 @@ body:has(.night-mode) {
     padding: 20px;
     margin-bottom: 20px;
     min-height: 130px;
+    overflow: hidden;
+}
+
+@media (max-width: 768px) {
+    .color-history {
+        padding: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .color-history {
+        padding: 12px;
+    }
 }
 
 .color-history-tabs {
@@ -725,9 +738,24 @@ body:has(.night-mode) {
 
 .color-history-grid {
     display: grid;
-    grid-template-columns: repeat(10, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
     gap: 10px;
     min-height: 60px;
+    max-width: 100%;
+}
+
+@media (max-width: 768px) {
+    .color-history-grid {
+        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+        gap: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .color-history-grid {
+        grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+        gap: 6px;
+    }
 }
 
 .color-history-empty {
@@ -742,22 +770,73 @@ body:has(.night-mode) {
 
 .color-item-wrapper {
     position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    align-items: stretch;
+}
+
+.color-item-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-height: 0;
+}
+
+.color-name-label {
+    font-size: 11px;
+    font-weight: bold;
+    color: #666;
+    text-align: center;
+    overflow: hidden;
+    line-height: 1.2;
+    padding: 0 2px;
+    height: 40px;
+    min-height: 40px;
+    max-height: 40px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+    white-space: pre-line;
+}
+
+@media (max-width: 480px) {
+    .color-name-label {
+        font-size: 8px;
+        height: 36px;
+        min-height: 36px;
+        max-height: 36px;
+    }
 }
 
 .color-history-item {
     width: 100%;
-    aspect-ratio: 1;
+    height: 0;
+    padding-bottom: 100%; /* Creates square aspect ratio */
     border: 2px solid #ddd;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    position: relative;
 }
 
 .color-history-item:hover {
-    transform: scale(1.1);
+    transform: scale(1.05);
     border-color: #667eea;
     box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+}
+
+@media (max-width: 768px) {
+    .color-history-item:hover {
+        transform: scale(1.02);
+    }
 }
 
 .color-history-item:active {
@@ -857,6 +936,10 @@ body:has(.night-mode) {
 
 .night-mode .color-history-item:hover {
     border-color: #667eea;
+}
+
+.night-mode .color-name-label {
+    color: #999;
 }
 
 .night-mode .color-save-btn,
