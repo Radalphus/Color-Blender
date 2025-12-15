@@ -5,9 +5,9 @@ A web-based color blending application that allows users to upload images, pick 
 
 ---
 
-## Current Status: ✅ COMPLETE - Version 2.3 (React + TypeScript)
+## Current Status: ✅ COMPLETE - Version 2.7 (React + TypeScript)
 
-The application has been fully migrated to React + TypeScript with modular architecture, enhanced UX improvements, full undo/redo support, and intuitive click-based interaction system!
+The application has been fully migrated to React + TypeScript with modular architecture, enhanced UX improvements, full undo/redo support, intuitive click-based interaction system, color naming feature, and variable grid sizes (3x3, 4x4, 5x5)!
 
 ---
 
@@ -175,11 +175,44 @@ The application has been fully migrated to React + TypeScript with modular archi
 - [x] **Fixed Aesthetic Double-Save Bug**: Removed redundant setCells call that caused multiple undo states
 - [x] **Callback Integration**: PaletteGrid notifies App when Auto Blend completes via onAutoBlendCompleted
 
+### Phase 14: Color Names Feature (v2.7) ✅
+- [x] **Color Name Library**: Integrated color-name-list library with 30,000+ named colors
+- [x] **Smart Color Matching**: Calculates closest matching color name using Euclidean distance algorithm
+- [x] **Match Quality Indicator**: Shows percentage match (e.g., "Red (95% match)") for approximate matches
+- [x] **Compact Format**: Displays abbreviated names with match percentage in color history boxes
+- [x] **Full Format**: Shows detailed names with match percentage in preview/selected color display
+- [x] **Exact Match Detection**: 100% match only shown for exact RGB matches (distance = 0)
+- [x] **Performance Optimization**: Implements caching to avoid recalculating color names
+- [x] **Color History Integration**: Names appear in all three color history tabs (Recent, Saved, Auto-Blended)
+- [x] **Tooltip Display**: Full color name and RGB values shown in tooltips on hover
+- [x] **Visual Labels**: Color name labels display below each color swatch in history
+- [x] **Selected Color Display**: Shows color name in the selected color preview box
+- [x] **Responsive Formatting**: Names wrap properly on small screens and in compact spaces
+
+### Phase 15: Variable Grid Sizes (v2.7) ✅
+- [x] **Grid Size Selector**: Button group UI to switch between 3x3, 4x4, and 5x5 grids
+- [x] **Dynamic Grid Configuration**: Helper functions calculate corners, edges, and inner cells for any grid size
+- [x] **Responsive Cell Sizing**: Cells automatically resize to maintain same total container size
+  - 3x3: 200px cells (~630px total)
+  - 4x4: 157px cells (~630px total)
+  - 5x5: 126px cells (~630px total)
+- [x] **localStorage Persistence**: Grid size preference saved and restored on page reload
+- [x] **Manual Mode Support**: All grid sizes work seamlessly with manual palette (4 colors per cell)
+- [x] **Aesthetic Mode Logic**: Dynamic corner/edge/inner auto-fill for all grid sizes
+  - 3x3: 4 corners, 4 edges, 1 center cell
+  - 4x4: 4 corners, 8 edges, 4 inner cells
+  - 5x5: 4 corners, 12 edges, 9 inner cells
+- [x] **Smart Auto-Fill**: Inner cells in 4x4 and 5x5 aesthetic mode blend all 4 corner colors
+- [x] **Undo/Redo Integration**: Full history support for all grid sizes
+- [x] **Auto Blend Compatibility**: Auto Blend button works correctly with all grid sizes
+- [x] **Night Mode Support**: Full theme integration for grid size selector
+- [x] **Mobile Touch Fix**: Added cancelable checks to prevent browser warnings during scrolling
+
 ---
 
 ## Technical Implementation Details
 
-### File Structure (v2.5 - React + TypeScript)
+### File Structure (v2.7 - React + TypeScript)
 ```
 Color-Blender/
 ├── color-blender-react/          # React application root
@@ -188,6 +221,7 @@ Color-Blender/
 │   │   │   ├── ImageUploader.tsx
 │   │   │   ├── PaletteCell.tsx
 │   │   │   ├── PaletteGrid.tsx
+│   │   │   ├── GridSizeSelector.tsx  # Grid size selection UI
 │   │   │   ├── ColorHistory.tsx  # Color history display
 │   │   │   └── Instructions.tsx
 │   │   ├── hooks/               # Custom React hooks
@@ -297,6 +331,20 @@ ctx.fill()
 - **Duplicate Prevention**: Can't save same color twice (±3 RGB tolerance)
 - **Persistent Actions**: Save/remove buttons appear on hover
 - **Full Night Mode**: Tabs, buttons, and all elements support dark theme
+
+#### Color Naming System (v2.7+)
+- **30,000+ Color Names**: Uses color-name-list library for comprehensive color naming
+- **Euclidean Distance Algorithm**: Finds closest matching color name by calculating RGB distance
+- **Distance Formula**: `sqrt((r1-r2)² + (g1-g2)² + (b1-b2)²)`
+- **Exact Match Detection**: Only shows 100% match for exact RGB matches (distance = 0)
+- **Match Quality Percentage**: Converts distance to percentage: `max(0, 100 - (distance / 4.41))`
+- **Two Display Formats**:
+  - Compact: `"Red\n~95%"` (for color history boxes)
+  - Full: `"Red (95% match)"` (for selected color display)
+- **Performance Caching**: Map-based cache prevents recalculating same color names
+- **Early Exit Optimization**: Stops searching when exact match found (distance = 0)
+- **Tooltip Integration**: Shows full name and RGB values on hover in color history
+- **Visual Labels**: Name appears below color swatch in all three history tabs
 
 ---
 
@@ -468,7 +516,30 @@ export default defineConfig({
 
 ## Version History
 
-### v2.6 - December 14, 2025 (Current)
+### v2.7 - December 14, 2025 (Current)
+**Color Names & Variable Grid Sizes**
+- Integrated color-name-list library with 30,000+ named colors
+- Smart color matching using Euclidean distance algorithm
+- Match quality indicators (e.g., "Red (95% match)") for approximate matches
+- Compact and full format display options for different UI contexts
+- Color names appear in selected color preview and all three history tabs
+- Performance optimization with caching system for color name lookups
+- Tooltips show full color name and RGB values on hover
+- Responsive formatting for color name labels in tight spaces
+- Implemented grid size selector with button group UI (3x3 | 4x4 | 5x5)
+- Created dynamic grid configuration system using helper functions (getGridConfig)
+- Cells automatically resize to maintain same total container width across all grid sizes
+- Added localStorage persistence for grid size preference
+- Extended manual mode to support all grid sizes (4 colors per cell)
+- Implemented dynamic aesthetic mode logic for 4x4 and 5x5 grids
+  - 4x4: 4 corners, 8 edges, 4 inner cells (all auto-fill from corners)
+  - 5x5: 4 corners, 12 edges, 9 inner cells (all auto-fill from corners)
+- Integrated full undo/redo support for all grid sizes
+- Updated Auto Blend button to work with all grid sizes
+- Added night mode support for grid size selector
+- Fixed mobile touch event warnings with cancelable checks
+
+### v2.6 - December 14, 2025
 **Auto-Blended Tab & History Optimization**
 - Added third "Auto-Blended" tab to color history for Auto Blend button results
 - Auto-Blended tab has pink gradient styling to match Auto Blend button (visual connection)
@@ -657,7 +728,7 @@ Free to use and modify for personal and commercial projects.
 ---
 
 **Last Updated**: December 14, 2025
-**Current Version**: v2.6 - Auto-Blended Tab & History Optimization
+**Current Version**: v2.7 - Variable Grid Sizes
 **Status**: Production Ready & Deployed ✅
 **Live on**: GitHub Pages
 **Next Milestone**: Load saved palettes feature or palette library system

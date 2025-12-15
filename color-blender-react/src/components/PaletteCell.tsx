@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { PaletteCell as PaletteCellType, Color, PaletteType } from '../types';
+import { PaletteCell as PaletteCellType, Color, PaletteType, GridSize, getGridConfig } from '../types';
 import {
   fillCellWithColor,
   fillCellWithTwoColors,
@@ -14,6 +14,8 @@ interface PaletteCellProps {
   index: number;
   paletteType: PaletteType;
   selectedColor: Color | null;
+  gridSize: GridSize;
+  canvasSize: number;
   isCornerCell: boolean;
   onCellUpdate: (index: number, cell: PaletteCellType, shouldSaveHistory?: boolean, skipAestheticUpdate?: boolean) => void;
   onCanvasRef: (index: number, canvas: HTMLCanvasElement | null) => void;
@@ -25,11 +27,15 @@ export function PaletteCell({
   index,
   paletteType,
   selectedColor,
+  gridSize,
+  canvasSize,
   isCornerCell,
   onCellUpdate,
   onCanvasRef,
   onBlendedColorCreated
 }: PaletteCellProps) {
+  // Get grid configuration
+  const { inner } = getGridConfig(gridSize);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const hasAutoFilledRef = useRef(false);
@@ -57,7 +63,9 @@ export function PaletteCell({
     if (!canvas) return;
 
     const touchStartHandler = (e: TouchEvent) => {
-      e.preventDefault();
+      if (e.cancelable) {
+        e.preventDefault();
+      }
       // Start timer to detect hold vs tap
       isHoldingRef.current = false;
       clickTimerRef.current = window.setTimeout(() => {
@@ -82,7 +90,9 @@ export function PaletteCell({
 
     const touchMoveHandler = (e: TouchEvent) => {
       if (!isDrawing) return;
-      e.preventDefault();
+      if (e.cancelable) {
+        e.preventDefault();
+      }
       const rect = canvas.getBoundingClientRect();
       const touch = e.touches[0];
       if (touch) {
@@ -172,11 +182,11 @@ export function PaletteCell({
 
               // In aesthetic mode:
               // - Corners trigger updates (fills edges)
-              // - Edges trigger updates (fills center only)
-              // - Center skips update (just keeps blended state)
+              // - Edges trigger updates (fills inner cells only)
+              // - Inner cells skip update (just keep blended state)
               // In manual mode, always skip update
-              const isCenter = index === 4;
-              const skipUpdate = paletteType === 'manual' || isCenter;
+              const isInner = inner.includes(index);
+              const skipUpdate = paletteType === 'manual' || isInner;
               onCellUpdate(index, {
                 color1: blendedColor,
                 color2: null,
@@ -599,11 +609,11 @@ export function PaletteCell({
             // Update cell data to reflect the blended color and SAVE TO HISTORY
             // In aesthetic mode:
             // - Corners trigger updates (fills edges)
-            // - Edges trigger updates (fills center only)
-            // - Center skips update (just keeps blended state)
+            // - Edges trigger updates (fills inner cells only)
+            // - Inner cells skip update (just keep blended state)
             // In manual mode, always skip update
-            const isCenter = index === 4;
-            const skipUpdate = paletteType === 'manual' || isCenter;
+            const isInner = inner.includes(index);
+            const skipUpdate = paletteType === 'manual' || isInner;
             onCellUpdate(index, {
               color1: blendedColor,
               color2: null,
@@ -680,8 +690,8 @@ export function PaletteCell({
     <div className="palette-cell">
       <canvas
         ref={canvasRef}
-        width={200}
-        height={200}
+        width={canvasSize}
+        height={canvasSize}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}

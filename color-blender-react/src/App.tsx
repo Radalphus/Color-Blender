@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
-import { Color, PaletteType } from './types';
+import { useState, useCallback, useEffect } from 'react';
+import { Color, PaletteType, GridSize } from './types';
 import { ImageUploader } from './components/ImageUploader';
 import { PaletteGrid } from './components/PaletteGrid';
+import { GridSizeSelector } from './components/GridSizeSelector';
 import { Instructions } from './components/Instructions';
 import { ColorHistory } from './components/ColorHistory';
 import { useColorHistory } from './hooks/useColorHistory';
@@ -13,6 +14,17 @@ function App() {
   const [selectedColor, setSelectedColor] = useState<Color | null>(null);
   const [paletteType, setPaletteType] = useState<PaletteType>('manual');
   const [nightMode, setNightMode] = useState<boolean>(false);
+
+  // Grid size state with localStorage persistence
+  const [gridSize, setGridSize] = useState<GridSize>(() => {
+    const saved = localStorage.getItem('colorBlenderGridSize');
+    return (saved ? parseInt(saved) as GridSize : 3);
+  });
+
+  // Save grid size to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('colorBlenderGridSize', gridSize.toString());
+  }, [gridSize]);
 
   // Use custom hooks for color management
   const { colorHistory, addToHistory } = useColorHistory();
@@ -63,6 +75,10 @@ function App() {
         />
 
         <div className="grid-section-wrapper">
+          <GridSizeSelector
+            gridSize={gridSize}
+            onGridSizeChange={setGridSize}
+          />
           <div className="palette-type-toggle">
             <button
               className={`palette-type-btn ${paletteType === 'manual' ? 'active' : ''}`}
@@ -78,6 +94,7 @@ function App() {
             </button>
           </div>
           <PaletteGrid
+            gridSize={gridSize}
             selectedColor={selectedColor}
             paletteType={paletteType}
             onBlendedColorCreated={addToHistory}

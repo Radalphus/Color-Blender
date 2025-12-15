@@ -3,6 +3,8 @@ import {
   PaletteCell as PaletteCellType,
   Color,
   PaletteType,
+  GridSize,
+  getGridConfig,
   AESTHETIC_CORNERS,
   AESTHETIC_EDGES,
   AESTHETIC_CENTER
@@ -12,40 +14,55 @@ import { exportPaletteAsImage, savePaletteAsJson } from '../utils/exportUtils';
 import { useHistory } from '../hooks/useHistory';
 
 interface PaletteGridProps {
+  gridSize: GridSize;
   selectedColor: Color | null;
   paletteType: PaletteType;
   onBlendedColorCreated?: (color: Color) => void;
   onAutoBlendCompleted?: (colors: Color[]) => void;
 }
 
-export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated, onAutoBlendCompleted }: PaletteGridProps) {
+export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedColorCreated, onAutoBlendCompleted }: PaletteGridProps) {
+  // Get grid configuration based on gridSize
+  const { totalCells, corners, edges, inner, canvasSize } = getGridConfig(gridSize);
+
+  // Helper function to create empty cell array
+  const createEmptyCells = (count: number): PaletteCellType[] =>
+    Array(count).fill(null).map(() => ({
+      color1: null,
+      color2: null,
+      color3: null,
+      color4: null,
+      hasAllFourColors: false
+    }));
+
   // Separate state for each palette type
-  const [manualCells, setManualCells] = useState<PaletteCellType[]>(
-    Array(9).fill(null).map(() => ({
-      color1: null,
-      color2: null,
-      color3: null,
-      color4: null,
-      hasAllFourColors: false
-    }))
-  );
-  const [aestheticCells, setAestheticCells] = useState<PaletteCellType[]>(
-    Array(9).fill(null).map(() => ({
-      color1: null,
-      color2: null,
-      color3: null,
-      color4: null,
-      hasAllFourColors: false
-    }))
-  );
+  const [manualCells, setManualCells] = useState<PaletteCellType[]>(createEmptyCells(totalCells));
+  const [aestheticCells, setAestheticCells] = useState<PaletteCellType[]>(createEmptyCells(totalCells));
 
   // Separate canvas refs for each palette type
-  const [manualCanvasRefs, setManualCanvasRefs] = useState<(HTMLCanvasElement | null)[]>(Array(9).fill(null));
-  const [aestheticCanvasRefs, setAestheticCanvasRefs] = useState<(HTMLCanvasElement | null)[]>(Array(9).fill(null));
+  const [manualCanvasRefs, setManualCanvasRefs] = useState<(HTMLCanvasElement | null)[]>(Array(totalCells).fill(null));
+  const [aestheticCanvasRefs, setAestheticCanvasRefs] = useState<(HTMLCanvasElement | null)[]>(Array(totalCells).fill(null));
 
   // Separate history for each palette type
   const manualHistory = useHistory();
   const aestheticHistory = useHistory();
+
+  // Track initialization state for each palette type
+  const [manualIsInitialized, setManualIsInitialized] = useState(false);
+  const [aestheticIsInitialized, setAestheticIsInitialized] = useState(false);
+
+  // Reset cells and canvas refs when gridSize changes
+  useEffect(() => {
+    setManualCells(createEmptyCells(totalCells));
+    setAestheticCells(createEmptyCells(totalCells));
+    setManualCanvasRefs(Array(totalCells).fill(null));
+    setAestheticCanvasRefs(Array(totalCells).fill(null));
+    // Reset histories
+    manualHistory.clearHistory();
+    aestheticHistory.clearHistory();
+    setManualIsInitialized(false);
+    setAestheticIsInitialized(false);
+  }, [gridSize, totalCells]);
 
   // Switch between manual and aesthetic based on current palette type
   const cells = paletteType === 'manual' ? manualCells : aestheticCells;
@@ -54,8 +71,6 @@ export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated,
   const setCanvasRefs = paletteType === 'manual' ? setManualCanvasRefs : setAestheticCanvasRefs;
   const { saveState, undo, redo, canUndo, canRedo, clearHistory } = paletteType === 'manual' ? manualHistory : aestheticHistory;
 
-  const [manualIsInitialized, setManualIsInitialized] = useState(false);
-  const [aestheticIsInitialized, setAestheticIsInitialized] = useState(false);
   const isInitialized = paletteType === 'manual' ? manualIsInitialized : aestheticIsInitialized;
   const setIsInitialized = paletteType === 'manual' ? setManualIsInitialized : setAestheticIsInitialized;
 
@@ -158,37 +173,56 @@ export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated,
     const newCells = [...updatedCells];
 
     if (updateCenterOnly) {
-      // Only update center cell (used when edges are blended)
-      const allEdgesBlended = Object.keys(AESTHETIC_EDGES).every(edgeIndex => {
+      // Only update inner cells (used when edges are blended)
+      const allEdgesBlended = Object.keys(edges).every(edgeIndex => {
         const edge = newCells[parseInt(edgeIndex)];
         return edge.color1 && !edge.color2 && !edge.color3 && !edge.color4;
       });
 
       if (allEdgesBlended) {
-        const edgeColors = Object.keys(AESTHETIC_EDGES).map(idx => newCells[parseInt(idx)].color1!);
-        newCells[AESTHETIC_CENTER] = {
-          color1: { ...edgeColors[0] },
-          color2: { ...edgeColors[1] },
-          color3: { ...edgeColors[2] },
-          color4: { ...edgeColors[3] },
-          hasAllFourColors: true
-        };
+        // For 3x3: 1 center cell with 4 colors from edges
+        // For 4x4+: Multiple inner cells, each gets blend of 4 corners
+        if (gridSize === 3) {
+          const edgeColors = Object.keys(edges).map(idx => newCells[parseInt(idx)].color1!);
+          const centerIndex = inner[0]; // For 3x3, there's only 1 inner cell
+          newCells[centerIndex] = {
+            color1: { ...edgeColors[0] },
+            color2: { ...edgeColors[1] },
+            color3: { ...edgeColors[2] },
+            color4: { ...edgeColors[3] },
+            hasAllFourColors: true
+          };
+        } else {
+          // For 4x4 and 5x5: All inner cells get blend of all 4 corners
+          const cornerColors = corners.map(idx => newCells[idx].color1!);
+          inner.forEach(innerIndex => {
+            newCells[innerIndex] = {
+              color1: { ...cornerColors[0] },
+              color2: { ...cornerColors[1] },
+              color3: { ...cornerColors[2] },
+              color4: { ...cornerColors[3] },
+              hasAllFourColors: true
+            };
+          });
+        }
       } else {
-        // Clear center if edges aren't ready
-        newCells[AESTHETIC_CENTER] = {
-          color1: null,
-          color2: null,
-          color3: null,
-          color4: null,
-          hasAllFourColors: false
-        };
+        // Clear inner cells if edges aren't ready
+        inner.forEach(innerIndex => {
+          newCells[innerIndex] = {
+            color1: null,
+            color2: null,
+            color3: null,
+            color4: null,
+            hasAllFourColors: false
+          };
+        });
       }
     } else if (changedCornerIndex !== undefined) {
       // Smart reset: only update cells affected by the changed corner
       const affectedEdges: number[] = [];
 
       // Find which edges are affected by this corner
-      Object.entries(AESTHETIC_EDGES).forEach(([edgeIndex, [corner1Index, corner2Index]]) => {
+      Object.entries(edges).forEach(([edgeIndex, [corner1Index, corner2Index]]) => {
         if (corner1Index === changedCornerIndex || corner2Index === changedCornerIndex) {
           affectedEdges.push(parseInt(edgeIndex));
         }
@@ -196,7 +230,7 @@ export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated,
 
       // Reset only the affected edge cells
       affectedEdges.forEach(edgeIndex => {
-        const [corner1Index, corner2Index] = AESTHETIC_EDGES[edgeIndex as keyof typeof AESTHETIC_EDGES];
+        const [corner1Index, corner2Index] = edges[edgeIndex];
         const corner1 = newCells[corner1Index];
         const corner2 = newCells[corner2Index];
 
@@ -241,34 +275,50 @@ export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated,
         }
       });
 
-      // Update center cell - only fill if ALL edges are fully blended (only color1, no other colors)
-      const allEdgesBlended = Object.keys(AESTHETIC_EDGES).every(edgeIndex => {
+      // Update inner cells - only fill if ALL edges are fully blended (only color1, no other colors)
+      const allEdgesBlended = Object.keys(edges).every(edgeIndex => {
         const edge = newCells[parseInt(edgeIndex)];
         return edge.color1 && !edge.color2 && !edge.color3 && !edge.color4;
       });
 
       if (allEdgesBlended) {
-        const edgeColors = Object.keys(AESTHETIC_EDGES).map(idx => newCells[parseInt(idx)].color1!);
-        newCells[AESTHETIC_CENTER] = {
-          color1: { ...edgeColors[0] },
-          color2: { ...edgeColors[1] },
-          color3: { ...edgeColors[2] },
-          color4: { ...edgeColors[3] },
-          hasAllFourColors: true
-        };
+        if (gridSize === 3) {
+          const edgeColors = Object.keys(edges).map(idx => newCells[parseInt(idx)].color1!);
+          const centerIndex = inner[0];
+          newCells[centerIndex] = {
+            color1: { ...edgeColors[0] },
+            color2: { ...edgeColors[1] },
+            color3: { ...edgeColors[2] },
+            color4: { ...edgeColors[3] },
+            hasAllFourColors: true
+          };
+        } else {
+          const cornerColors = corners.map(idx => newCells[idx].color1!);
+          inner.forEach(innerIndex => {
+            newCells[innerIndex] = {
+              color1: { ...cornerColors[0] },
+              color2: { ...cornerColors[1] },
+              color3: { ...cornerColors[2] },
+              color4: { ...cornerColors[3] },
+              hasAllFourColors: true
+            };
+          });
+        }
       } else {
-        // Clear center if edges aren't ready
-        newCells[AESTHETIC_CENTER] = {
-          color1: null,
-          color2: null,
-          color3: null,
-          color4: null,
-          hasAllFourColors: false
-        };
+        // Clear inner cells if edges aren't ready
+        inner.forEach(innerIndex => {
+          newCells[innerIndex] = {
+            color1: null,
+            color2: null,
+            color3: null,
+            color4: null,
+            hasAllFourColors: false
+          };
+        });
       }
     } else {
       // Full update (for initial setup or when no specific corner changed)
-      Object.entries(AESTHETIC_EDGES).forEach(([edgeIndex, [corner1Index, corner2Index]]) => {
+      Object.entries(edges).forEach(([edgeIndex, [corner1Index, corner2Index]]) => {
         const index = parseInt(edgeIndex);
         const corner1 = newCells[corner1Index];
         const corner2 = newCells[corner2Index];
@@ -314,35 +364,51 @@ export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated,
         }
       });
 
-      // Update center cell - only fill if ALL edges are fully blended (only color1, no other colors)
-      const allEdgesBlended = Object.keys(AESTHETIC_EDGES).every(edgeIndex => {
+      // Update inner cells - only fill if ALL edges are fully blended (only color1, no other colors)
+      const allEdgesBlended = Object.keys(edges).every(edgeIndex => {
         const edge = newCells[parseInt(edgeIndex)];
         return edge.color1 && !edge.color2 && !edge.color3 && !edge.color4;
       });
 
       if (allEdgesBlended) {
-        const edgeColors = Object.keys(AESTHETIC_EDGES).map(idx => newCells[parseInt(idx)].color1!);
-        newCells[AESTHETIC_CENTER] = {
-          color1: { ...edgeColors[0] },
-          color2: { ...edgeColors[1] },
-          color3: { ...edgeColors[2] },
-          color4: { ...edgeColors[3] },
-          hasAllFourColors: true
-        };
+        if (gridSize === 3) {
+          const edgeColors = Object.keys(edges).map(idx => newCells[parseInt(idx)].color1!);
+          const centerIndex = inner[0];
+          newCells[centerIndex] = {
+            color1: { ...edgeColors[0] },
+            color2: { ...edgeColors[1] },
+            color3: { ...edgeColors[2] },
+            color4: { ...edgeColors[3] },
+            hasAllFourColors: true
+          };
+        } else {
+          const cornerColors = corners.map(idx => newCells[idx].color1!);
+          inner.forEach(innerIndex => {
+            newCells[innerIndex] = {
+              color1: { ...cornerColors[0] },
+              color2: { ...cornerColors[1] },
+              color3: { ...cornerColors[2] },
+              color4: { ...cornerColors[3] },
+              hasAllFourColors: true
+            };
+          });
+        }
       } else {
-        // Clear center if edges aren't ready
-        newCells[AESTHETIC_CENTER] = {
-          color1: null,
-          color2: null,
-          color3: null,
-          color4: null,
-          hasAllFourColors: false
-        };
+        // Clear inner cells if edges aren't ready
+        inner.forEach(innerIndex => {
+          newCells[innerIndex] = {
+            color1: null,
+            color2: null,
+            color3: null,
+            color4: null,
+            hasAllFourColors: false
+          };
+        });
       }
     }
 
     return newCells;
-  }, []);
+  }, [gridSize, corners, edges, inner]);
 
 
   const handleCellUpdate = useCallback((index: number, cell: PaletteCellType, shouldSaveHistory: boolean = true, skipAestheticUpdate: boolean = false) => {
@@ -354,8 +420,8 @@ export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated,
 
       if (paletteType === 'aesthetic' && !skipAestheticUpdate) {
         // Check if the updated cell is a corner
-        const isCorner = AESTHETIC_CORNERS.includes(index as 0 | 2 | 6 | 8);
-        const isEdge = [1, 3, 5, 7].includes(index);
+        const isCorner = corners.includes(index);
+        const isEdge = edges.hasOwnProperty(index);
 
         if (isCorner) {
           // Smart reset: only update affected edges and center
@@ -460,8 +526,8 @@ export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated,
         }
       }
 
-      // Step 1: Blend all corner cells (0, 2, 6, 8)
-      AESTHETIC_CORNERS.forEach(cornerIndex => {
+      // Step 1: Blend all corner cells
+      corners.forEach(cornerIndex => {
         const canvas = canvasRefs[cornerIndex];
         if (!canvas) return;
 
@@ -694,7 +760,7 @@ export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated,
   return (
     <div className="grid-section">
       <h2>Color Palette</h2>
-      <div className="palette-grid">
+      <div className="palette-grid" data-grid-size={gridSize}>
         {cells.map((cell, index) => (
           <PaletteCell
             key={`${paletteType}-${index}`}
@@ -702,7 +768,9 @@ export function PaletteGrid({ selectedColor, paletteType, onBlendedColorCreated,
             index={index}
             paletteType={paletteType}
             selectedColor={selectedColor}
-            isCornerCell={AESTHETIC_CORNERS.includes(index as 0 | 2 | 6 | 8)}
+            gridSize={gridSize}
+            canvasSize={canvasSize}
+            isCornerCell={corners.includes(index)}
             onCellUpdate={handleCellUpdate}
             onCanvasRef={handleCanvasRef}
             onBlendedColorCreated={onBlendedColorCreated}
