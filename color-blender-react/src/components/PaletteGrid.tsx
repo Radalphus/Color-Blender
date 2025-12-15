@@ -4,10 +4,7 @@ import {
   Color,
   PaletteType,
   GridSize,
-  getGridConfig,
-  AESTHETIC_CORNERS,
-  AESTHETIC_EDGES,
-  AESTHETIC_CENTER
+  getGridConfig
 } from '../types';
 import { PaletteCell } from './PaletteCell';
 import { exportPaletteAsImage, savePaletteAsJson } from '../utils/exportUtils';
@@ -51,8 +48,12 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
   const [manualIsInitialized, setManualIsInitialized] = useState(false);
   const [aestheticIsInitialized, setAestheticIsInitialized] = useState(false);
 
+  // Counter to force remounting when grid size changes
+  const [gridKey, setGridKey] = useState(0);
+
   // Reset cells and canvas refs when gridSize changes
   useEffect(() => {
+    console.log(`Grid size changed to ${gridSize}, resetting state...`);
     setManualCells(createEmptyCells(totalCells));
     setAestheticCells(createEmptyCells(totalCells));
     setManualCanvasRefs(Array(totalCells).fill(null));
@@ -62,6 +63,9 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
     aestheticHistory.clearHistory();
     setManualIsInitialized(false);
     setAestheticIsInitialized(false);
+    // Increment key to force remounting of all cells
+    setGridKey(prev => prev + 1);
+    console.log(`State reset complete. New gridKey: ${gridKey + 1}`);
   }, [gridSize, totalCells]);
 
   // Switch between manual and aesthetic based on current palette type
@@ -77,12 +81,15 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
   const pendingSaveRef = useRef<boolean>(false); // Prevent duplicate saves
 
   const handleCanvasRef = useCallback((index: number, canvas: HTMLCanvasElement | null) => {
+    console.log(`handleCanvasRef called: index=${index}, canvas=${canvas ? 'EXISTS' : 'NULL'}, paletteType=${paletteType}`);
     setCanvasRefs(prev => {
+      console.log(`  Previous refs length: ${prev.length}, setting index ${index}`);
       const newRefs = [...prev];
       newRefs[index] = canvas;
+      console.log(`  New refs[${index}] =`, canvas ? 'CANVAS' : 'null');
       return newRefs;
     });
-  }, [setCanvasRefs]);
+  }, [setCanvasRefs, paletteType]);
 
   // Undo/Redo handlers
   const handleUndo = useCallback(() => {
@@ -476,6 +483,15 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
   };
 
   const handleAutoBlend = () => {
+    console.log('=== AUTO BLEND CLICKED ===');
+    console.log('Grid Size:', gridSize);
+    console.log('Palette Type:', paletteType);
+    console.log('Corners:', corners);
+    console.log('Edges:', edges);
+    console.log('Inner:', inner);
+    console.log('Cells:', cells);
+    console.log('Canvas Refs:', canvasRefs);
+
     // Array to collect all blended colors
     const blendedColors: Color[] = [];
 
@@ -483,11 +499,13 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
     let hasChanges = false;
 
     if (paletteType === 'aesthetic') {
-      // For aesthetic mode: blend corners first, then update edges and center using auto-fill logic
+      console.log('AESTHETIC MODE BRANCH');
+      // For aesthetic mode: blend corners first, then update edges and inner cells using auto-fill logic
       const newCells = [...cells];
 
       // First, check current edges to see if they need blending (before auto-fill changes them)
-      Object.keys(AESTHETIC_EDGES).forEach(edgeIndexStr => {
+      console.log('Checking edges for blending...');
+      Object.keys(edges).forEach(edgeIndexStr => {
         const index = parseInt(edgeIndexStr);
         const cell = cells[index];
 
@@ -508,27 +526,31 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
         }
       });
 
-      // Check center cell (it has 4 colors that blend to 1)
-      const centerCell = cells[AESTHETIC_CENTER];
-      if (centerCell.hasAllFourColors && centerCell.color1 && centerCell.color2 && centerCell.color3 && centerCell.color4) {
-        // Center has 4 colors - check if already blended
-        const medianR = Math.round((centerCell.color1.r + centerCell.color2.r + centerCell.color3.r + centerCell.color4.r) / 4);
-        const medianG = Math.round((centerCell.color1.g + centerCell.color2.g + centerCell.color3.g + centerCell.color4.g) / 4);
-        const medianB = Math.round((centerCell.color1.b + centerCell.color2.b + centerCell.color3.b + centerCell.color4.b) / 4);
+      // Check inner cells (they have 4 colors that blend to 1)
+      inner.forEach(innerIndex => {
+        const innerCell = cells[innerIndex];
+        if (innerCell.hasAllFourColors && innerCell.color1 && innerCell.color2 && innerCell.color3 && innerCell.color4) {
+          // Inner cell has 4 colors - check if already blended
+          const medianR = Math.round((innerCell.color1.r + innerCell.color2.r + innerCell.color3.r + innerCell.color4.r) / 4);
+          const medianG = Math.round((innerCell.color1.g + innerCell.color2.g + innerCell.color3.g + innerCell.color4.g) / 4);
+          const medianB = Math.round((innerCell.color1.b + innerCell.color2.b + innerCell.color3.b + innerCell.color4.b) / 4);
 
-        const needsBlending =
-          centerCell.color1.r !== medianR ||
-          centerCell.color1.g !== medianG ||
-          centerCell.color1.b !== medianB;
+          const needsBlending =
+            innerCell.color1.r !== medianR ||
+            innerCell.color1.g !== medianG ||
+            innerCell.color1.b !== medianB;
 
-        if (needsBlending) {
-          hasChanges = true;
+          if (needsBlending) {
+            hasChanges = true;
+          }
         }
-      }
+      });
 
       // Step 1: Blend all corner cells
+      console.log('Step 1: Blending corner cells...');
       corners.forEach(cornerIndex => {
         const canvas = canvasRefs[cornerIndex];
+        console.log(`Corner ${cornerIndex}:`, canvas ? 'has canvas' : 'NO CANVAS');
         if (!canvas) return;
 
         const cell = newCells[cornerIndex];
@@ -591,8 +613,8 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
         const finalCells = [...updatedCells];
         const edgeColors: Color[] = [];
 
-        // First, blend all edge cells (not corners, not center)
-        Object.keys(AESTHETIC_EDGES).forEach(edgeIndexStr => {
+        // First, blend all edge cells (not corners, not inner)
+        Object.keys(edges).forEach(edgeIndexStr => {
           const index = parseInt(edgeIndexStr);
           const canvas = canvasRefs[index];
           const cell = finalCells[index];
@@ -635,35 +657,38 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
           };
         });
 
-        // Step 4: Now blend the center cell with the 4 blended edge colors
-        if (edgeColors.length === 4) {
-          // Calculate the median of all 4 edge colors
-          const medianR = Math.round((edgeColors[0].r + edgeColors[1].r + edgeColors[2].r + edgeColors[3].r) / 4);
-          const medianG = Math.round((edgeColors[0].g + edgeColors[1].g + edgeColors[2].g + edgeColors[3].g) / 4);
-          const medianB = Math.round((edgeColors[0].b + edgeColors[1].b + edgeColors[2].b + edgeColors[3].b) / 4);
+        // Step 4: Blend all inner cells (center for 3x3, or multiple inner cells for 4x4/5x5)
+        inner.forEach(innerIndex => {
+          const innerCell = finalCells[innerIndex];
+          if (!innerCell.hasAllFourColors || !innerCell.color1 || !innerCell.color2 || !innerCell.color3 || !innerCell.color4) return;
 
-          const centerBlendedColor = { r: medianR, g: medianG, b: medianB };
-          blendedColors.push(centerBlendedColor);
+          // Calculate the median of all 4 colors
+          const medianR = Math.round((innerCell.color1.r + innerCell.color2.r + innerCell.color3.r + innerCell.color4.r) / 4);
+          const medianG = Math.round((innerCell.color1.g + innerCell.color2.g + innerCell.color3.g + innerCell.color4.g) / 4);
+          const medianB = Math.round((innerCell.color1.b + innerCell.color2.b + innerCell.color3.b + innerCell.color4.b) / 4);
 
-          // Update center cell data to reflect blended state (only color1)
-          finalCells[AESTHETIC_CENTER] = {
-            color1: centerBlendedColor,
+          const innerBlendedColor = { r: medianR, g: medianG, b: medianB };
+          blendedColors.push(innerBlendedColor);
+
+          // Update inner cell data to reflect blended state (only color1)
+          finalCells[innerIndex] = {
+            color1: innerBlendedColor,
             color2: null,
             color3: null,
             color4: null,
             hasAllFourColors: false
           };
 
-          // Blend the center cell visually
-          const centerCanvas = canvasRefs[AESTHETIC_CENTER];
-          if (centerCanvas) {
-            const ctx = centerCanvas.getContext('2d');
+          // Blend the inner cell visually
+          const innerCanvas = canvasRefs[innerIndex];
+          if (innerCanvas) {
+            const ctx = innerCanvas.getContext('2d');
             if (ctx) {
               ctx.fillStyle = `rgb(${medianR}, ${medianG}, ${medianB})`;
-              ctx.fillRect(0, 0, centerCanvas.width, centerCanvas.height);
+              ctx.fillRect(0, 0, innerCanvas.width, innerCanvas.height);
             }
           }
-        }
+        });
 
         // Update state with final blended cells
         setCells(finalCells);
@@ -683,18 +708,36 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
         }, 10);
       }, 50);
     } else {
+      console.log('MANUAL MODE BRANCH');
       // Manual mode: blend all cells that have colors
       const newCells = [...cells];
 
+      console.log('Processing cells in manual mode...');
       canvasRefs.forEach((canvas, index) => {
-        if (!canvas) return;
+        console.log(`Cell ${index}:`, canvas ? 'has canvas' : 'NO CANVAS', 'cell:', newCells[index]);
+        if (!canvas) {
+          console.log(`  Skipping cell ${index} - no canvas`);
+          return;
+        }
 
         const cell = newCells[index];
+        if (!cell) {
+          console.log(`  Skipping cell ${index} - cell is undefined`);
+          return;
+        }
+
         const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+        if (!ctx) {
+          console.log(`  Skipping cell ${index} - no context`);
+          return;
+        }
 
         // Skip if cell has no colors
-        if (!cell.color1) return;
+        if (!cell.color1) {
+          console.log(`  Skipping cell ${index} - no color1`);
+          return;
+        }
+        console.log(`  Cell ${index} will be blended!`);
 
         // Check if this cell has multiple colors (needs blending)
         if (cell.color2 || cell.color3 || cell.color4) {
@@ -738,21 +781,32 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
         // Fill the entire cell with the median color
         ctx.fillStyle = `rgb(${medianR}, ${medianG}, ${medianB})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        console.log(`  Cell ${index} blended to rgb(${medianR}, ${medianG}, ${medianB})`);
       });
+
+      console.log('Done processing cells. hasChanges:', hasChanges, 'blendedColors:', blendedColors.length);
 
       // Update cells state
       setCells(newCells);
+      console.log('Cells state updated');
 
       // Save state after auto-blend (only if changes were made)
       if (hasChanges && !pendingSaveRef.current) {
+        console.log('Saving state...');
         pendingSaveRef.current = true;
         saveState(newCells, canvasRefs);
         pendingSaveRef.current = false;
+        console.log('State saved');
+      } else {
+        console.log('Not saving state. hasChanges:', hasChanges, 'pendingSaveRef:', pendingSaveRef.current);
       }
 
       // Call callback with all blended colors
       if (onAutoBlendCompleted && blendedColors.length > 0) {
+        console.log('Calling onAutoBlendCompleted with', blendedColors.length, 'colors');
         onAutoBlendCompleted(blendedColors);
+      } else {
+        console.log('Not calling onAutoBlendCompleted. callback exists:', !!onAutoBlendCompleted, 'colors:', blendedColors.length);
       }
     }
   };
@@ -763,7 +817,7 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
       <div className="palette-grid" data-grid-size={gridSize}>
         {cells.map((cell, index) => (
           <PaletteCell
-            key={`${paletteType}-${index}`}
+            key={`${paletteType}-${gridKey}-${index}`}
             cell={cell}
             index={index}
             paletteType={paletteType}
