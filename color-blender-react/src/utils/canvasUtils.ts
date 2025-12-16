@@ -75,19 +75,48 @@ export function fillCellWithThreeColors(
   color2: Color,
   color3: Color
 ): void {
-  const thirdW = canvas.width / 3;
+  // Check if color1 and color2 are the same (weighted edge case)
+  const color1Same = color1.r === color2.r && color1.g === color2.g && color1.b === color2.b;
+  const color2Same = color2.r === color3.r && color2.g === color3.g && color2.b === color3.b;
 
-  // Left third
-  ctx.fillStyle = colorToRgbString(color1);
-  ctx.fillRect(0, 0, thirdW, canvas.height);
+  if (color1Same) {
+    // color1 and color2 are the same - show 2/3 color1, 1/3 color3
+    const twoThirds = Math.floor(canvas.width * 2 / 3);
 
-  // Middle third
-  ctx.fillStyle = colorToRgbString(color2);
-  ctx.fillRect(thirdW, 0, thirdW, canvas.height);
+    // Left 2/3
+    ctx.fillStyle = colorToRgbString(color1);
+    ctx.fillRect(0, 0, twoThirds, canvas.height);
 
-  // Right third
-  ctx.fillStyle = colorToRgbString(color3);
-  ctx.fillRect(thirdW * 2, 0, thirdW, canvas.height);
+    // Right 1/3
+    ctx.fillStyle = colorToRgbString(color3);
+    ctx.fillRect(twoThirds, 0, canvas.width - twoThirds, canvas.height);
+  } else if (color2Same) {
+    // color2 and color3 are the same - show 1/3 color1, 2/3 color2
+    const oneThird = Math.floor(canvas.width / 3);
+
+    // Left 1/3
+    ctx.fillStyle = colorToRgbString(color1);
+    ctx.fillRect(0, 0, oneThird, canvas.height);
+
+    // Right 2/3
+    ctx.fillStyle = colorToRgbString(color2);
+    ctx.fillRect(oneThird, 0, canvas.width - oneThird, canvas.height);
+  } else {
+    // All three colors are different - show in thirds
+    const thirdW = Math.floor(canvas.width / 3);
+
+    // Left third
+    ctx.fillStyle = colorToRgbString(color1);
+    ctx.fillRect(0, 0, thirdW, canvas.height);
+
+    // Middle third
+    ctx.fillStyle = colorToRgbString(color2);
+    ctx.fillRect(thirdW, 0, thirdW, canvas.height);
+
+    // Right third
+    ctx.fillStyle = colorToRgbString(color3);
+    ctx.fillRect(thirdW * 2, 0, canvas.width - thirdW * 2, canvas.height);
+  }
 }
 
 export function fillCellWithFourColors(

@@ -176,6 +176,42 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
 
+  // Helper function to determine which corner is closer to an edge cell
+  // Returns { closerCorner, fartherCorner, isEqual } where isEqual indicates 50/50
+  const getEdgeCornersByDistance = useCallback((edgeIndex: number, corner1Index: number, corner2Index: number, corner1: Color, corner2: Color): { closerCorner: Color, fartherCorner: Color, isEqual: boolean } => {
+    // Calculate which corner is closer based on position
+    // Determine if this is a horizontal or vertical edge
+    const isHorizontalEdge = Math.abs(corner1Index - corner2Index) < gridSize;
+
+    let distanceFromCorner1: number;
+
+    if (isHorizontalEdge) {
+      // Horizontal edge (top or bottom row)
+      // Distance is based on column position
+      const edgeCol = edgeIndex % gridSize;
+      const corner1Col = corner1Index % gridSize;
+      distanceFromCorner1 = Math.abs(edgeCol - corner1Col);
+    } else {
+      // Vertical edge (left or right column)
+      // Distance is based on row position
+      const edgeRow = Math.floor(edgeIndex / gridSize);
+      const corner1Row = Math.floor(corner1Index / gridSize);
+      distanceFromCorner1 = Math.abs(edgeRow - corner1Row);
+    }
+
+    const distanceFromCorner2 = (gridSize - 1) - distanceFromCorner1;
+
+    // Return object with distance equality flag
+    if (distanceFromCorner1 < distanceFromCorner2) {
+      return { closerCorner: corner1, fartherCorner: corner2, isEqual: false };
+    } else if (distanceFromCorner2 < distanceFromCorner1) {
+      return { closerCorner: corner2, fartherCorner: corner1, isEqual: false };
+    } else {
+      // Equal distance - 50/50 blend (5x5 middle edges)
+      return { closerCorner: corner1, fartherCorner: corner2, isEqual: true };
+    }
+  }, [gridSize]);
+
   const updateAestheticPalette = useCallback((updatedCells: PaletteCellType[], changedCornerIndex?: number, updateCenterOnly: boolean = false) => {
     const newCells = [...updatedCells];
 
@@ -264,14 +300,40 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
               hasAllFourColors: false
             };
           } else {
-            // Different colors, edge cell contains both
-            newCells[edgeIndex] = {
-              color1: { ...corner1.color1! },
-              color2: { ...corner2.color1! },
-              color3: null,
-              color4: null,
-              hasAllFourColors: false
-            };
+            // Different colors - for 4x4/5x5 use weighted blend, for 3x3 use both colors
+            if (gridSize === 3) {
+              // 3x3: edge cell contains both colors (50/50)
+              newCells[edgeIndex] = {
+                color1: { ...corner1.color1! },
+                color2: { ...corner2.color1! },
+                color3: null,
+                color4: null,
+                hasAllFourColors: false
+              };
+            } else {
+              // 4x4/5x5: edge cell gets colors based on distance
+              const { closerCorner, fartherCorner, isEqual } = getEdgeCornersByDistance(edgeIndex, corner1Index, corner2Index, corner1.color1!, corner2.color1!);
+
+              if (isEqual) {
+                // Equal distance (5x5 middle edges) - 50/50 blend, store as 2 colors
+                newCells[edgeIndex] = {
+                  color1: { ...closerCorner },
+                  color2: { ...fartherCorner },
+                  color3: null,
+                  color4: null,
+                  hasAllFourColors: false
+                };
+              } else {
+                // Weighted (closer edge) - 2/3 vs 1/3, store as 3 colors
+                newCells[edgeIndex] = {
+                  color1: { ...closerCorner },
+                  color2: { ...closerCorner },
+                  color3: { ...fartherCorner },
+                  color4: null,
+                  hasAllFourColors: false
+                };
+              }
+            }
           }
         } else {
           // Clear edge if corners aren't ready
@@ -359,14 +421,40 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
               hasAllFourColors: false
             };
           } else {
-            // Different colors, edge cell contains both
-            newCells[index] = {
-              color1: { ...corner1.color1! },
-              color2: { ...corner2.color1! },
-              color3: null,
-              color4: null,
-              hasAllFourColors: false
-            };
+            // Different colors - for 4x4/5x5 use weighted blend, for 3x3 use both colors
+            if (gridSize === 3) {
+              // 3x3: edge cell contains both colors (50/50)
+              newCells[index] = {
+                color1: { ...corner1.color1! },
+                color2: { ...corner2.color1! },
+                color3: null,
+                color4: null,
+                hasAllFourColors: false
+              };
+            } else {
+              // 4x4/5x5: edge cell gets colors based on distance
+              const { closerCorner, fartherCorner, isEqual } = getEdgeCornersByDistance(index, corner1Index, corner2Index, corner1.color1!, corner2.color1!);
+
+              if (isEqual) {
+                // Equal distance (5x5 middle edges) - 50/50 blend, store as 2 colors
+                newCells[index] = {
+                  color1: { ...closerCorner },
+                  color2: { ...fartherCorner },
+                  color3: null,
+                  color4: null,
+                  hasAllFourColors: false
+                };
+              } else {
+                // Weighted (closer edge) - 2/3 vs 1/3, store as 3 colors
+                newCells[index] = {
+                  color1: { ...closerCorner },
+                  color2: { ...closerCorner },
+                  color3: { ...fartherCorner },
+                  color4: null,
+                  hasAllFourColors: false
+                };
+              }
+            }
           }
         } else {
           // Clear edge if corners aren't ready
@@ -430,7 +518,7 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
     }
 
     return newCells;
-  }, [gridSize, corners, edges, inner]);
+  }, [gridSize, corners, edges, inner, getEdgeCornersByDistance]);
 
 
   const handleCellUpdate = useCallback((index: number, cell: PaletteCellType, shouldSaveHistory: boolean = true, skipAestheticUpdate: boolean = false) => {
@@ -642,12 +730,20 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
           // Calculate median for edge cell
           let medianR: number, medianG: number, medianB: number;
 
-          if (cell.color2) {
+          // For 4x4/5x5: edges have 3 colors (2 from closer corner, 1 from farther)
+          if (cell.color2 && cell.color3) {
+            medianR = Math.round((cell.color1.r + cell.color2.r + cell.color3.r) / 3);
+            medianG = Math.round((cell.color1.g + cell.color2.g + cell.color3.g) / 3);
+            medianB = Math.round((cell.color1.b + cell.color2.b + cell.color3.b) / 3);
+          }
+          // For 3x3: edges have 2 colors (50/50 from adjacent corners)
+          else if (cell.color2) {
             medianR = Math.round((cell.color1.r + cell.color2.r) / 2);
             medianG = Math.round((cell.color1.g + cell.color2.g) / 2);
             medianB = Math.round((cell.color1.b + cell.color2.b) / 2);
-            // Edge checking already done upfront, no need to check again here
-          } else {
+          }
+          // Edge with only 1 color (same corners)
+          else {
             medianR = cell.color1.r;
             medianG = cell.color1.g;
             medianB = cell.color1.b;
