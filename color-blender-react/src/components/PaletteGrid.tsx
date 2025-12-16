@@ -181,12 +181,12 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
 
     if (updateCenterOnly) {
       // Only update inner cells (used when edges are blended)
-      const allEdgesBlended = Object.keys(edges).every(edgeIndex => {
+      const allEdgesFilled = Object.keys(edges).every(edgeIndex => {
         const edge = newCells[parseInt(edgeIndex)];
-        return edge.color1 && !edge.color2 && !edge.color3 && !edge.color4;
+        return edge.color1 !== null; // Edge is filled if it has at least color1
       });
 
-      if (allEdgesBlended) {
+      if (allEdgesFilled) {
         // For 3x3: 1 center cell with 4 colors from edges
         // For 4x4+: Multiple inner cells, each gets blend of 4 corners
         if (gridSize === 3) {
@@ -282,13 +282,13 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
         }
       });
 
-      // Update inner cells - only fill if ALL edges are fully blended (only color1, no other colors)
-      const allEdgesBlended = Object.keys(edges).every(edgeIndex => {
+      // Update inner cells - only fill if ALL edges are filled (have at least color1)
+      const allEdgesFilled = Object.keys(edges).every(edgeIndex => {
         const edge = newCells[parseInt(edgeIndex)];
-        return edge.color1 && !edge.color2 && !edge.color3 && !edge.color4;
+        return edge.color1 !== null; // Edge is filled if it has at least color1
       });
 
-      if (allEdgesBlended) {
+      if (allEdgesFilled) {
         if (gridSize === 3) {
           const edgeColors = Object.keys(edges).map(idx => newCells[parseInt(idx)].color1!);
           const centerIndex = inner[0];
@@ -371,13 +371,13 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
         }
       });
 
-      // Update inner cells - only fill if ALL edges are fully blended (only color1, no other colors)
-      const allEdgesBlended = Object.keys(edges).every(edgeIndex => {
+      // Update inner cells - only fill if ALL edges are filled (have at least color1)
+      const allEdgesFilled = Object.keys(edges).every(edgeIndex => {
         const edge = newCells[parseInt(edgeIndex)];
-        return edge.color1 && !edge.color2 && !edge.color3 && !edge.color4;
+        return edge.color1 !== null; // Edge is filled if it has at least color1
       });
 
-      if (allEdgesBlended) {
+      if (allEdgesFilled) {
         if (gridSize === 3) {
           const edgeColors = Object.keys(edges).map(idx => newCells[parseInt(idx)].color1!);
           const centerIndex = inner[0];
@@ -658,9 +658,15 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
         });
 
         // Step 4: Blend all inner cells (center for 3x3, or multiple inner cells for 4x4/5x5)
+        console.log('Step 4: Blending inner cells. Inner indices:', inner);
         inner.forEach(innerIndex => {
           const innerCell = finalCells[innerIndex];
-          if (!innerCell.hasAllFourColors || !innerCell.color1 || !innerCell.color2 || !innerCell.color3 || !innerCell.color4) return;
+          console.log(`  Inner cell ${innerIndex}:`, innerCell);
+          if (!innerCell.hasAllFourColors || !innerCell.color1 || !innerCell.color2 || !innerCell.color3 || !innerCell.color4) {
+            console.log(`    Skipping inner cell ${innerIndex} - not ready`);
+            return;
+          }
+          console.log(`    Blending inner cell ${innerIndex}`);
 
           // Calculate the median of all 4 colors
           const medianR = Math.round((innerCell.color1.r + innerCell.color2.r + innerCell.color3.r + innerCell.color4.r) / 4);
