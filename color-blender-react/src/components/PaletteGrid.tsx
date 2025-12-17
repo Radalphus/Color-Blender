@@ -4,7 +4,8 @@ import {
   Color,
   PaletteType,
   GridSize,
-  getGridConfig
+  getGridConfig,
+  getEdgeOrientation
 } from '../types';
 import { PaletteCell } from './PaletteCell';
 import { exportPaletteAsImage, savePaletteAsJson } from '../utils/exportUtils';
@@ -314,11 +315,45 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
               // 4x4/5x5: edge cell gets colors based on distance
               const { closerCorner, fartherCorner, isEqual } = getEdgeCornersByDistance(edgeIndex, corner1Index, corner2Index, corner1.color1!, corner2.color1!);
 
+              // For left/right edges, ensure colors are in top-to-bottom order
+              const edgeOrientation = getEdgeOrientation(edgeIndex, gridSize);
+              const isVerticalEdge = edgeOrientation === 'left' || edgeOrientation === 'right';
+
+              // Determine correct color order
+              let firstColor, secondColor, thirdColor;
+              if (isVerticalEdge) {
+                // For left/right edges: corner1 is top, corner2 is bottom
+                // We want top corner first, bottom corner second
+                if (isEqual) {
+                  firstColor = corner1.color1!;
+                  secondColor = corner2.color1!;
+                } else {
+                  // Weighted: more of the closer corner
+                  const topIsCloser = closerCorner.r === corner1.color1!.r &&
+                                     closerCorner.g === corner1.color1!.g &&
+                                     closerCorner.b === corner1.color1!.b;
+                  if (topIsCloser) {
+                    firstColor = corner1.color1!;
+                    secondColor = corner1.color1!;
+                    thirdColor = corner2.color1!;
+                  } else {
+                    firstColor = corner1.color1!;
+                    secondColor = corner2.color1!;
+                    thirdColor = corner2.color1!;
+                  }
+                }
+              } else {
+                // For top/bottom edges: use distance-based order (left to right)
+                firstColor = closerCorner;
+                secondColor = isEqual ? fartherCorner : closerCorner;
+                thirdColor = fartherCorner;
+              }
+
               if (isEqual) {
                 // Equal distance (5x5 middle edges) - 50/50 blend, store as 2 colors
                 newCells[edgeIndex] = {
-                  color1: { ...closerCorner },
-                  color2: { ...fartherCorner },
+                  color1: { ...firstColor },
+                  color2: { ...secondColor },
                   color3: null,
                   color4: null,
                   hasAllFourColors: false
@@ -326,9 +361,9 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
               } else {
                 // Weighted (closer edge) - 2/3 vs 1/3, store as 3 colors
                 newCells[edgeIndex] = {
-                  color1: { ...closerCorner },
-                  color2: { ...closerCorner },
-                  color3: { ...fartherCorner },
+                  color1: { ...firstColor },
+                  color2: { ...secondColor },
+                  color3: { ...thirdColor! },
                   color4: null,
                   hasAllFourColors: false
                 };
@@ -435,11 +470,57 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
               // 4x4/5x5: edge cell gets colors based on distance
               const { closerCorner, fartherCorner, isEqual } = getEdgeCornersByDistance(index, corner1Index, corner2Index, corner1.color1!, corner2.color1!);
 
+              // For left/right edges, ensure colors are in top-to-bottom order
+              const edgeOrientation = getEdgeOrientation(index, gridSize);
+              const isVerticalEdge = edgeOrientation === 'left' || edgeOrientation === 'right';
+
+              // Determine correct color order
+              let firstColor, secondColor, thirdColor;
+              if (isVerticalEdge) {
+                // For left/right edges: corner1 is top, corner2 is bottom
+                // We want top corner first, bottom corner second
+                if (isEqual) {
+                  firstColor = corner1.color1!;
+                  secondColor = corner2.color1!;
+                } else {
+                  // Weighted: more of the closer corner
+                  const topIsCloser = closerCorner.r === corner1.color1!.r &&
+                                     closerCorner.g === corner1.color1!.g &&
+                                     closerCorner.b === corner1.color1!.b;
+                  if (topIsCloser) {
+                    firstColor = corner1.color1!;
+                    secondColor = corner1.color1!;
+                    thirdColor = corner2.color1!;
+                  } else {
+                    firstColor = corner1.color1!;
+                    secondColor = corner2.color1!;
+                    thirdColor = corner2.color1!;
+                  }
+                }
+              } else {
+                // For top/bottom edges: check if it's the last edge cell in the row
+                const isTopEdge = edgeOrientation === 'top';
+                const isBottomEdge = edgeOrientation === 'bottom';
+                const isLastEdgeInRow = (index % gridSize) === (gridSize - 2);
+
+                if ((isTopEdge || isBottomEdge) && isLastEdgeInRow) {
+                  // Last edge cell: reverse order (right to left)
+                  firstColor = fartherCorner;
+                  secondColor = isEqual ? closerCorner : fartherCorner;
+                  thirdColor = closerCorner;
+                } else {
+                  // First/middle edge cells: normal order (left to right)
+                  firstColor = closerCorner;
+                  secondColor = isEqual ? fartherCorner : closerCorner;
+                  thirdColor = fartherCorner;
+                }
+              }
+
               if (isEqual) {
                 // Equal distance (5x5 middle edges) - 50/50 blend, store as 2 colors
                 newCells[index] = {
-                  color1: { ...closerCorner },
-                  color2: { ...fartherCorner },
+                  color1: { ...firstColor },
+                  color2: { ...secondColor },
                   color3: null,
                   color4: null,
                   hasAllFourColors: false
@@ -447,9 +528,9 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
               } else {
                 // Weighted (closer edge) - 2/3 vs 1/3, store as 3 colors
                 newCells[index] = {
-                  color1: { ...closerCorner },
-                  color2: { ...closerCorner },
-                  color3: { ...fartherCorner },
+                  color1: { ...firstColor },
+                  color2: { ...secondColor },
+                  color3: { ...thirdColor! },
                   color4: null,
                   hasAllFourColors: false
                 };

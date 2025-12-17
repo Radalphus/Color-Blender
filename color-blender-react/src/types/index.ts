@@ -93,6 +93,31 @@ function getCanvasSize(size: GridSize): number {
   return size === 3 ? 200 : size === 4 ? 157 : 126;
 }
 
+// Helper function to determine edge orientation
+export function getEdgeOrientation(index: number, size: GridSize): 'top' | 'bottom' | 'left' | 'right' | null {
+  // Top edge
+  if (index > 0 && index < size - 1) {
+    return 'top';
+  }
+
+  // Bottom edge
+  if (index > size * (size - 1) && index < size * size - 1) {
+    return 'bottom';
+  }
+
+  // Left edge
+  if (index % size === 0 && index > 0 && index < size * (size - 1)) {
+    return 'left';
+  }
+
+  // Right edge
+  if (index % size === size - 1 && index > size - 1 && index < size * size - 1) {
+    return 'right';
+  }
+
+  return null;
+}
+
 // Main configuration function - returns all grid-related values
 export function getGridConfig(size: GridSize): GridConfig {
   return {

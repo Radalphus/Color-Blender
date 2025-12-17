@@ -68,6 +68,21 @@ export function fillCellWithTwoColors(
   ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
 }
 
+export function fillCellWithTwoColorsHorizontal(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  color1: Color,
+  color2: Color
+): void {
+  // Top half
+  ctx.fillStyle = colorToRgbString(color1);
+  ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
+
+  // Bottom half
+  ctx.fillStyle = colorToRgbString(color2);
+  ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
+}
+
 export function fillCellWithThreeColors(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
@@ -119,6 +134,57 @@ export function fillCellWithThreeColors(
   }
 }
 
+export function fillCellWithThreeColorsHorizontal(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  color1: Color,
+  color2: Color,
+  color3: Color
+): void {
+  // Check if color1 and color2 are the same (weighted edge case)
+  const color1Same = color1.r === color2.r && color1.g === color2.g && color1.b === color2.b;
+  const color2Same = color2.r === color3.r && color2.g === color3.g && color2.b === color3.b;
+
+  if (color1Same) {
+    // color1 and color2 are the same - show 2/3 color1, 1/3 color3
+    const twoThirds = Math.floor(canvas.height * 2 / 3);
+
+    // Top 2/3
+    ctx.fillStyle = colorToRgbString(color1);
+    ctx.fillRect(0, 0, canvas.width, twoThirds);
+
+    // Bottom 1/3
+    ctx.fillStyle = colorToRgbString(color3);
+    ctx.fillRect(0, twoThirds, canvas.width, canvas.height - twoThirds);
+  } else if (color2Same) {
+    // color2 and color3 are the same - show 1/3 color1, 2/3 color2
+    const oneThird = Math.floor(canvas.height / 3);
+
+    // Top 1/3
+    ctx.fillStyle = colorToRgbString(color1);
+    ctx.fillRect(0, 0, canvas.width, oneThird);
+
+    // Bottom 2/3
+    ctx.fillStyle = colorToRgbString(color2);
+    ctx.fillRect(0, oneThird, canvas.width, canvas.height - oneThird);
+  } else {
+    // All three colors are different - show in thirds
+    const thirdH = Math.floor(canvas.height / 3);
+
+    // Top third
+    ctx.fillStyle = colorToRgbString(color1);
+    ctx.fillRect(0, 0, canvas.width, thirdH);
+
+    // Middle third
+    ctx.fillStyle = colorToRgbString(color2);
+    ctx.fillRect(0, thirdH, canvas.width, thirdH);
+
+    // Bottom third
+    ctx.fillStyle = colorToRgbString(color3);
+    ctx.fillRect(0, thirdH * 2, canvas.width, canvas.height - thirdH * 2);
+  }
+}
+
 export function fillCellWithFourColors(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
@@ -142,6 +208,63 @@ export function fillCellWithFourColors(
   // Bottom-right
   ctx.fillStyle = colorToRgbString(colors[3]);
   ctx.fillRect(halfW, halfH, halfW, halfH);
+}
+
+export function fillCellWithFourColorsTriangles(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  colors: [Color, Color, Color, Color]
+): void {
+  // Draw 4 triangular wedges radiating from the center
+  // colors[0] = top edge, colors[1] = right edge, colors[2] = bottom edge, colors[3] = left edge
+  // Rotated counter-clockwise: top stays, right->bottom, bottom->left, left->right
+  const centerX = Math.floor(canvas.width / 2);
+  const centerY = Math.floor(canvas.height / 2);
+
+  // Disable anti-aliasing for crisp edges
+  ctx.imageSmoothingEnabled = false;
+
+  // Clear any existing content
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Top triangle (color 0) - stays the same
+  ctx.fillStyle = colorToRgbString(colors[0]);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(canvas.width, 0);
+  ctx.lineTo(centerX, centerY);
+  ctx.closePath();
+  ctx.fill();
+
+  // Right triangle - gets bottom edge color (color 2)
+  ctx.fillStyle = colorToRgbString(colors[2]);
+  ctx.beginPath();
+  ctx.moveTo(canvas.width, 0);
+  ctx.lineTo(canvas.width, canvas.height);
+  ctx.lineTo(centerX, centerY);
+  ctx.closePath();
+  ctx.fill();
+
+  // Bottom triangle - gets left edge color (color 3)
+  ctx.fillStyle = colorToRgbString(colors[3]);
+  ctx.beginPath();
+  ctx.moveTo(canvas.width, canvas.height);
+  ctx.lineTo(0, canvas.height);
+  ctx.lineTo(centerX, centerY);
+  ctx.closePath();
+  ctx.fill();
+
+  // Left triangle - gets right edge color (color 1)
+  ctx.fillStyle = colorToRgbString(colors[1]);
+  ctx.beginPath();
+  ctx.moveTo(0, canvas.height);
+  ctx.lineTo(0, 0);
+  ctx.lineTo(centerX, centerY);
+  ctx.closePath();
+  ctx.fill();
+
+  // Re-enable anti-aliasing
+  ctx.imageSmoothingEnabled = true;
 }
 
 export function clearCanvas(

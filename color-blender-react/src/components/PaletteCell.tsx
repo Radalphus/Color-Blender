@@ -1,10 +1,13 @@
 import { useRef, useEffect, useState } from 'react';
-import { PaletteCell as PaletteCellType, Color, PaletteType, GridSize, getGridConfig } from '../types';
+import { PaletteCell as PaletteCellType, Color, PaletteType, GridSize, getGridConfig, getEdgeOrientation } from '../types';
 import {
   fillCellWithColor,
   fillCellWithTwoColors,
+  fillCellWithTwoColorsHorizontal,
   fillCellWithThreeColors,
+  fillCellWithThreeColorsHorizontal,
   fillCellWithFourColors,
+  fillCellWithFourColorsTriangles,
   clearCanvas,
   drawBlendedColor
 } from '../utils/canvasUtils';
@@ -277,15 +280,59 @@ export function PaletteCell({
     clearCanvas(ctx, canvas);
 
     if (cell.hasAllFourColors && cell.color1 && cell.color2 && cell.color3 && cell.color4) {
-      fillCellWithFourColors(ctx, canvas, [cell.color1, cell.color2, cell.color3, cell.color4]);
+      // For 3x3 aesthetic mode center cell, use triangle pattern
+      const isCenterCell = gridSize === 3 && paletteType === 'aesthetic' && inner.includes(index);
+      if (isCenterCell) {
+        fillCellWithFourColorsTriangles(ctx, canvas, [cell.color1, cell.color2, cell.color3, cell.color4]);
+      } else {
+        fillCellWithFourColors(ctx, canvas, [cell.color1, cell.color2, cell.color3, cell.color4]);
+      }
       hasAutoFilledRef.current = false; // Reset flag when cell structure changes
       hasCalledBlendCallbackRef.current = false; // Reset blend callback flag
     } else if (cell.color1 && cell.color2 && cell.color3) {
-      fillCellWithThreeColors(ctx, canvas, cell.color1, cell.color2, cell.color3);
+      // Check if this is a left or right edge in aesthetic mode
+      const edgeOrientation = paletteType === 'aesthetic' ? getEdgeOrientation(index, gridSize) : null;
+      const useHorizontal = edgeOrientation === 'left' || edgeOrientation === 'right';
+
+      // Check if this needs visual flip
+      // For 3x3: DON'T flip (only 1 cell each on top/bottom)
+      // For 4x4/5x5: flip only the last edge cell in top/bottom rows
+      const isTopOrBottomEdge = edgeOrientation === 'top' || edgeOrientation === 'bottom';
+      const isLastEdgeInRow = (index % gridSize) === (gridSize - 2);
+      const shouldFlipVisually = paletteType === 'aesthetic' && isTopOrBottomEdge &&
+                                 gridSize !== 3 && isLastEdgeInRow;
+
+      if (useHorizontal) {
+        fillCellWithThreeColorsHorizontal(ctx, canvas, cell.color1, cell.color2, cell.color3);
+      } else if (shouldFlipVisually) {
+        // Flip the visual order (right to left)
+        fillCellWithThreeColors(ctx, canvas, cell.color3, cell.color2, cell.color1);
+      } else {
+        fillCellWithThreeColors(ctx, canvas, cell.color1, cell.color2, cell.color3);
+      }
       hasAutoFilledRef.current = false; // Reset flag when cell structure changes
       hasCalledBlendCallbackRef.current = false; // Reset blend callback flag
     } else if (cell.color1 && cell.color2) {
-      fillCellWithTwoColors(ctx, canvas, cell.color1, cell.color2);
+      // Check if this is a left or right edge in aesthetic mode
+      const edgeOrientation = paletteType === 'aesthetic' ? getEdgeOrientation(index, gridSize) : null;
+      const useHorizontal = edgeOrientation === 'left' || edgeOrientation === 'right';
+
+      // Check if this needs visual flip
+      // For 3x3: DON'T flip (only 1 cell each on top/bottom)
+      // For 4x4/5x5: flip only the last edge cell in top/bottom rows
+      const isTopOrBottomEdge = edgeOrientation === 'top' || edgeOrientation === 'bottom';
+      const isLastEdgeInRow = (index % gridSize) === (gridSize - 2);
+      const shouldFlipVisually = paletteType === 'aesthetic' && isTopOrBottomEdge &&
+                                 gridSize !== 3 && isLastEdgeInRow;
+
+      if (useHorizontal) {
+        fillCellWithTwoColorsHorizontal(ctx, canvas, cell.color1, cell.color2);
+      } else if (shouldFlipVisually) {
+        // Flip the visual order (right to left)
+        fillCellWithTwoColors(ctx, canvas, cell.color2, cell.color1);
+      } else {
+        fillCellWithTwoColors(ctx, canvas, cell.color1, cell.color2);
+      }
       hasAutoFilledRef.current = false; // Reset flag when cell structure changes
       hasCalledBlendCallbackRef.current = false; // Reset blend callback flag
     } else if (cell.color1) {
