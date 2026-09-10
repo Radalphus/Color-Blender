@@ -105,26 +105,33 @@ npm run preview
 ### Aesthetic Palette Mode
 
 1. Upload an image and pick colors
-2. Switch to **Aesthetic Palette** mode
-3. In **Color Picking Mode**, click ONLY the 4 corner cells
-4. Edge cells auto-fill with 2 colors from adjacent corners
-5. Center cell auto-fills with all 4 corner colors
-6. Switch to **Blending Mode** to manually blend any cell
+2. Switch to **Aesthetic Palette** mode and choose a grid size (3x3, 4x4, 5x5)
+3. Click ONLY the 4 corner cells to set their colors (up to 4 colors each)
+4. Blend each corner (click-and-hold and drag, or **Auto Blend**)
+5. Edge cells auto-fill from their two adjacent corners
+6. Blend the edges - each inner cell appears once the four edge cells in its row and column are blended
+7. Blend the inner cells (or press **Auto Blend** to finish everything in one go)
 
 ## Key Concepts
 
 ### Color Blending Algorithm
 
 - **2-color cells**: Calculates the median color `(color1 + color2) / 2`
-- **4-color center cell**: Calculates the median of all 4 colors `(c1 + c2 + c3 + c4) / 4`
+- **3- and 4-color cells**: Plain average of all colors
+- **Aesthetic inner cells**: Weighted average of the 4 surrounding edge colors (2:1 toward adjacent edges)
+- **One formula everywhere**: `getCellBlendColor()` is used for drag-blending, blend completion, and Auto Blend
 - **Solid blending**: No gradual mixing, creates clean solid colors
 - **Brush-based**: 50px radius circular brush for smooth application
 
 ### Aesthetic Palette Auto-Fill
 
-- **Corner cells (0, 2, 6, 8)**: User-controlled
-- **Edge cells (1, 3, 5, 7)**: Auto-filled with 2 adjacent corner colors
-- **Center cell (4)**: Auto-filled with all 4 corner colors in 2x2 grid
+- **Corner cells**: User-controlled
+- **Edge cells**: Auto-filled from the two adjacent corners once both are blended
+  - 3x3: 50/50 split
+  - 4x4/5x5: 2:1 toward the nearer corner (50/50 for the 5x5 middle edges)
+- **Inner cells**: Stay empty until the top/bottom/left/right edge cells in their row and column are blended, then show those four colors as wedges facing the edge they came from
+  - Blend weights are 2 for an adjacent edge and 1 for a farther edge, giving a smooth gradient across 4x4/5x5 grids
+  - In 3x3 every edge is adjacent, so the center is an equal average
 
 ## Component Architecture
 
@@ -169,10 +176,10 @@ Works in all modern browsers:
 
 ## Future Enhancements
 
-- [ ] Undo/Redo functionality
+- [x] Undo/Redo functionality
 - [ ] Adjustable brush sizes
-- [ ] Color history panel
-- [ ] Variable grid sizes (2x2, 4x4, 5x5)
+- [x] Color history panel
+- [x] Variable grid sizes (3x3, 4x4, 5x5)
 - [ ] Load saved palette JSON files
 - [ ] Color palette presets
 - [ ] PWA support for offline use

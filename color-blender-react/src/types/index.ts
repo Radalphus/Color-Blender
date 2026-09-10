@@ -10,6 +10,7 @@ export interface PaletteCell {
   color3?: Color | null;
   color4?: Color | null;
   hasAllFourColors?: boolean;
+  weights?: [number, number, number, number]; // Optional weights for displaying 4 colors proportionally
 }
 
 export type PaletteType = 'manual' | 'aesthetic';

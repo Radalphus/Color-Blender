@@ -5,7 +5,7 @@ A web-based color blending application that allows users to upload images, pick 
 
 ---
 
-## Current Status: ✅ COMPLETE - Version 2.7 (React + TypeScript)
+## Current Status: ✅ COMPLETE - Version 2.8 (React + TypeScript)
 
 The application has been fully migrated to React + TypeScript with modular architecture, enhanced UX improvements, full undo/redo support, intuitive click-based interaction system, color naming feature, and variable grid sizes (3x3, 4x4, 5x5)!
 
@@ -208,6 +208,18 @@ The application has been fully migrated to React + TypeScript with modular archi
 - [x] **Night Mode Support**: Full theme integration for grid size selector
 - [x] **Mobile Touch Fix**: Added cancelable checks to prevent browser warnings during scrolling
 
+### Phase 16: Weighted Aesthetic Gradients for 4x4/5x5 (v2.8) ✅
+- [x] **Distance-Weighted Edges**: Edge cells blend 2:1 toward their nearer corner (50/50 for the 5x5 middle edges)
+- [x] **Inner Cells From Edges**: 4x4/5x5 inner cells take the blended color of the edge cell in their row and column (top, bottom, left, right) instead of copying the 4 corners
+- [x] **No Spoilers**: An inner cell stays empty until all four of its edges have been blended, so blending edges by hand still has a reveal; inner cells appear progressively in 4x4/5x5
+- [x] **Weighted Inner Blend**: Inner cells carry `weights` (2 for an adjacent edge, 1 for a farther edge) so Auto Blend and hand-blending both produce a smooth gradient across the whole grid
+- [x] **Directional Wedges**: Inner cells display 4 triangular wedges, each facing the edge its color came from
+- [x] **Single Blend Formula**: New `getCellBlendColor()` helper is the one place a cell's median is computed (drag-blend, blend completion, Auto Blend)
+- [x] **Auto Blend Fix**: Inner cells are recomputed from the *blended* edges for all grid sizes (previously 3x3 only)
+- [x] **Edge Ordering Fix**: Full aesthetic refresh (used by Auto Blend) no longer double-flips the last top/bottom edge cell
+- [x] **Clear Palette Fix**: Clear now resets `gridSize²` cells instead of a hard-coded 9
+- [x] **Cleanup**: Removed debug logging and duplicated inner-cell code from `PaletteGrid.tsx`
+
 ---
 
 ## Technical Implementation Details
@@ -332,6 +344,13 @@ ctx.fill()
 - **Persistent Actions**: Save/remove buttons appear on hover
 - **Full Night Mode**: Tabs, buttons, and all elements support dark theme
 
+#### Weighted Aesthetic Gradients (v2.8+)
+- **Edges (4x4/5x5)**: Stored as 3 stripes `[closer, closer, farther]` so the median is 2/3 nearer corner + 1/3 farther corner; equidistant 5x5 middle edges store 2 stripes (50/50)
+- **Inner cells (all sizes)**: fill only once the top/bottom/left/right edge cells in the cell's column/row are each blended to a single color; then `color1..4 = [top, bottom, left, right]` with `weights = [wTop, wBottom, wLeft, wRight]` where `w = 2` if the edge is 1 cell away, else `1`
+- **Blend formula**: `getCellBlendColor(cell)` in `colorUtils.ts` — weighted average when `weights` present, plain average otherwise; used by drag-blend, blend completion and Auto Blend so results are identical everywhere
+- **Display**: `fillCellWithFourColorsTriangles()` draws equal wedges facing the source edge; weights affect only the blend result, not the display
+- **3x3**: the center is just an inner cell whose 4 edges are all adjacent, so it uses the same code (weights all 2 = equal average)
+
 #### Color Naming System (v2.7+)
 - **30,000+ Color Names**: Uses color-name-list library for comprehensive color naming
 - **Euclidean Distance Algorithm**: Finds closest matching color name by calculating RGB distance
@@ -370,8 +389,8 @@ ctx.fill()
   - Slider control for brush size (10-50px)
   - Visual indicator of current brush size
 
-- [ ] **Variable Grid Sizes**
-  - Option to switch between 2x2, 3x3, 4x4, 5x5
+- [x] **Variable Grid Sizes** ✅ (Completed in v2.7)
+  - Switch between 3x3, 4x4, 5x5
   - Saved preference in localStorage
 
 - [x] **Color History Panel** ✅ (Completed in v2.4)
@@ -516,7 +535,20 @@ export default defineConfig({
 
 ## Version History
 
-### v2.7 - December 14, 2025 (Current)
+### v2.8 - September 10, 2026 (Current)
+**Weighted Aesthetic Gradients for 4x4/5x5**
+- 4x4/5x5 inner cells now derive from the adjacent edge cells (top/bottom/left/right) rather than the 4 corners
+- Inner cells stay empty until their four edges are blended (per cell), so hand-blending edges keeps its reveal
+- Inner cells carry distance weights (2:1 toward adjacent edges) so Auto Blend produces a smooth gradient across the grid
+- Added `getCellBlendColor()` as the single source of truth for a cell's blended color (weighted-aware)
+- Hand-blending an inner cell now finishes with the same weighted color it previews while dragging
+- Auto Blend recomputes inner cells from the blended edges for every grid size
+- Fixed full aesthetic refresh reversing the last top/bottom edge cell (double flip with the visual flip in PaletteCell)
+- Fixed Clear Palette only resetting 9 cells on 4x4/5x5 grids
+- Removed unused `fillCellWithFourColorsWeighted`, debug logging, and three copies of the inner-cell code
+- Verified with a headless-browser pixel check of every cell for 3x3, 4x4 and 5x5
+
+### v2.7 - December 14, 2025
 **Color Names & Variable Grid Sizes**
 - Integrated color-name-list library with 30,000+ named colors
 - Smart color matching using Euclidean distance algorithm
@@ -727,8 +759,8 @@ Free to use and modify for personal and commercial projects.
 
 ---
 
-**Last Updated**: December 14, 2025
-**Current Version**: v2.7 - Variable Grid Sizes
+**Last Updated**: September 10, 2026
+**Current Version**: v2.8 - Weighted Aesthetic Gradients
 **Status**: Production Ready & Deployed ✅
 **Live on**: GitHub Pages
 **Next Milestone**: Load saved palettes feature or palette library system

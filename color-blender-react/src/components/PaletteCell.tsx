@@ -11,6 +11,7 @@ import {
   clearCanvas,
   drawBlendedColor
 } from '../utils/canvasUtils';
+import { getCellBlendColor } from '../utils/colorUtils';
 
 interface PaletteCellProps {
   cell: PaletteCellType;
@@ -156,28 +157,13 @@ export function PaletteCell({
             if (blendPercentage >= 80 && !hasAutoFilledRef.current) {
               // Calculate the exact median color from the cell's stored colors
               // This ensures the same colors always produce the same blend result
-              let medianR: number, medianG: number, medianB: number;
+              const blendedColor = getCellBlendColor(cell)!;
 
-              if (cell.hasAllFourColors && cell.color3 && cell.color4) {
-                medianR = Math.round((cell.color1.r + cell.color2.r + cell.color3.r + cell.color4.r) / 4);
-                medianG = Math.round((cell.color1.g + cell.color2.g + cell.color3.g + cell.color4.g) / 4);
-                medianB = Math.round((cell.color1.b + cell.color2.b + cell.color3.b + cell.color4.b) / 4);
-              } else if (cell.color3) {
-                medianR = Math.round((cell.color1.r + cell.color2.r + cell.color3.r) / 3);
-                medianG = Math.round((cell.color1.g + cell.color2.g + cell.color3.g) / 3);
-                medianB = Math.round((cell.color1.b + cell.color2.b + cell.color3.b) / 3);
-              } else {
-                medianR = Math.round((cell.color1.r + cell.color2.r) / 2);
-                medianG = Math.round((cell.color1.g + cell.color2.g) / 2);
-                medianB = Math.round((cell.color1.b + cell.color2.b) / 2);
-              }
-
-              ctx.fillStyle = `rgb(${medianR}, ${medianG}, ${medianB})`;
+              ctx.fillStyle = `rgb(${blendedColor.r}, ${blendedColor.g}, ${blendedColor.b})`;
               ctx.fillRect(0, 0, canvas.width, canvas.height);
               hasAutoFilledRef.current = true;
 
               // Add blended color to history (only once per blend)
-              const blendedColor = { r: medianR, g: medianG, b: medianB };
               if (!hasCalledBlendCallbackRef.current) {
                 hasCalledBlendCallbackRef.current = true;
                 onBlendedColorCreated?.(blendedColor);
@@ -280,11 +266,14 @@ export function PaletteCell({
     clearCanvas(ctx, canvas);
 
     if (cell.hasAllFourColors && cell.color1 && cell.color2 && cell.color3 && cell.color4) {
-      // For 3x3 aesthetic mode center cell, use triangle pattern
-      const isCenterCell = gridSize === 3 && paletteType === 'aesthetic' && inner.includes(index);
-      if (isCenterCell) {
+      const isInnerCell = paletteType === 'aesthetic' && inner.includes(index);
+
+      if (isInnerCell) {
+        // Aesthetic inner cells hold [top, bottom, left, right] edge colors - draw each as a
+        // wedge facing the edge it came from (weights affect the blend result, not the display)
         fillCellWithFourColorsTriangles(ctx, canvas, [cell.color1, cell.color2, cell.color3, cell.color4]);
       } else {
+        // For manual mode, use standard 2x2 grid
         fillCellWithFourColors(ctx, canvas, [cell.color1, cell.color2, cell.color3, cell.color4]);
       }
       hasAutoFilledRef.current = false; // Reset flag when cell structure changes
@@ -623,31 +612,16 @@ export function PaletteCell({
           if (blendPercentage >= 80 && !hasAutoFilledRef.current) {
             // Calculate the exact median color from the cell's stored colors
             // This ensures the same colors always produce the same blend result
-            let medianR: number, medianG: number, medianB: number;
-
-            if (cell.hasAllFourColors && cell.color3 && cell.color4) {
-              medianR = Math.round((cell.color1.r + cell.color2.r + cell.color3.r + cell.color4.r) / 4);
-              medianG = Math.round((cell.color1.g + cell.color2.g + cell.color3.g + cell.color4.g) / 4);
-              medianB = Math.round((cell.color1.b + cell.color2.b + cell.color3.b + cell.color4.b) / 4);
-            } else if (cell.color3) {
-              medianR = Math.round((cell.color1.r + cell.color2.r + cell.color3.r) / 3);
-              medianG = Math.round((cell.color1.g + cell.color2.g + cell.color3.g) / 3);
-              medianB = Math.round((cell.color1.b + cell.color2.b + cell.color3.b) / 3);
-            } else {
-              medianR = Math.round((cell.color1.r + cell.color2.r) / 2);
-              medianG = Math.round((cell.color1.g + cell.color2.g) / 2);
-              medianB = Math.round((cell.color1.b + cell.color2.b) / 2);
-            }
+            const blendedColor = getCellBlendColor(cell)!;
 
             // Fill entire canvas with the median color
-            ctx.fillStyle = `rgb(${medianR}, ${medianG}, ${medianB})`;
+            ctx.fillStyle = `rgb(${blendedColor.r}, ${blendedColor.g}, ${blendedColor.b})`;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             // Set flag to prevent duplicate saves
             hasAutoFilledRef.current = true;
 
             // Add blended color to history (only once per blend)
-            const blendedColor = { r: medianR, g: medianG, b: medianB };
             if (!hasCalledBlendCallbackRef.current) {
               hasCalledBlendCallbackRef.current = true;
               onBlendedColorCreated?.(blendedColor);
