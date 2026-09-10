@@ -10,6 +10,15 @@ import {
 import { PaletteCell } from './PaletteCell';
 import { exportPaletteAsImage, savePaletteAsJson } from '../utils/exportUtils';
 import { useHistory } from '../hooks/useHistory';
+import { getCellBlendColor } from '../utils/colorUtils';
+
+const emptyCell = (): PaletteCellType => ({
+  color1: null,
+  color2: null,
+  color3: null,
+  color4: null,
+  hasAllFourColors: false
+});
 
 interface PaletteGridProps {
   gridSize: GridSize;
@@ -25,13 +34,7 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
 
   // Helper function to create empty cell array
   const createEmptyCells = (count: number): PaletteCellType[] =>
-    Array(count).fill(null).map(() => ({
-      color1: null,
-      color2: null,
-      color3: null,
-      color4: null,
-      hasAllFourColors: false
-    }));
+    Array(count).fill(null).map(emptyCell);
 
   // Separate state for each palette type
   const [manualCells, setManualCells] = useState<PaletteCellType[]>(createEmptyCells(totalCells));
@@ -54,7 +57,6 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
 
   // Reset cells and canvas refs when gridSize changes
   useEffect(() => {
-    console.log(`Grid size changed to ${gridSize}, resetting state...`);
     setManualCells(createEmptyCells(totalCells));
     setAestheticCells(createEmptyCells(totalCells));
     setManualCanvasRefs(Array(totalCells).fill(null));
@@ -66,7 +68,6 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
     setAestheticIsInitialized(false);
     // Increment key to force remounting of all cells
     setGridKey(prev => prev + 1);
-    console.log(`State reset complete. New gridKey: ${gridKey + 1}`);
   }, [gridSize, totalCells]);
 
   // Switch between manual and aesthetic based on current palette type
@@ -82,15 +83,12 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
   const pendingSaveRef = useRef<boolean>(false); // Prevent duplicate saves
 
   const handleCanvasRef = useCallback((index: number, canvas: HTMLCanvasElement | null) => {
-    console.log(`handleCanvasRef called: index=${index}, canvas=${canvas ? 'EXISTS' : 'NULL'}, paletteType=${paletteType}`);
     setCanvasRefs(prev => {
-      console.log(`  Previous refs length: ${prev.length}, setting index ${index}`);
       const newRefs = [...prev];
       newRefs[index] = canvas;
-      console.log(`  New refs[${index}] =`, canvas ? 'CANVAS' : 'null');
       return newRefs;
     });
-  }, [setCanvasRefs, paletteType]);
+  }, [setCanvasRefs]);
 
   // Undo/Redo handlers
   const handleUndo = useCallback(() => {
@@ -177,429 +175,133 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
 
-  // Helper function to determine which corner is closer to an edge cell
-  // Returns { closerCorner, fartherCorner, isEqual } where isEqual indicates 50/50
-  const getEdgeCornersByDistance = useCallback((edgeIndex: number, corner1Index: number, corner2Index: number, corner1: Color, corner2: Color): { closerCorner: Color, fartherCorner: Color, isEqual: boolean } => {
-    // Calculate which corner is closer based on position
-    // Determine if this is a horizontal or vertical edge
+  // For 4x4/5x5 edges: is this edge cell closer to corner1, corner2, or equidistant (5x5 middle edges)?
+  const getEdgeProximity = useCallback((edgeIndex: number, corner1Index: number, corner2Index: number): 'corner1' | 'corner2' | 'equal' => {
+    // Horizontal edges (top/bottom rows) measure by column, vertical edges by row
     const isHorizontalEdge = Math.abs(corner1Index - corner2Index) < gridSize;
-
-    let distanceFromCorner1: number;
-
-    if (isHorizontalEdge) {
-      // Horizontal edge (top or bottom row)
-      // Distance is based on column position
-      const edgeCol = edgeIndex % gridSize;
-      const corner1Col = corner1Index % gridSize;
-      distanceFromCorner1 = Math.abs(edgeCol - corner1Col);
-    } else {
-      // Vertical edge (left or right column)
-      // Distance is based on row position
-      const edgeRow = Math.floor(edgeIndex / gridSize);
-      const corner1Row = Math.floor(corner1Index / gridSize);
-      distanceFromCorner1 = Math.abs(edgeRow - corner1Row);
-    }
-
+    const distanceFromCorner1 = isHorizontalEdge
+      ? Math.abs((edgeIndex % gridSize) - (corner1Index % gridSize))
+      : Math.abs(Math.floor(edgeIndex / gridSize) - Math.floor(corner1Index / gridSize));
     const distanceFromCorner2 = (gridSize - 1) - distanceFromCorner1;
 
-    // Return object with distance equality flag
-    if (distanceFromCorner1 < distanceFromCorner2) {
-      return { closerCorner: corner1, fartherCorner: corner2, isEqual: false };
-    } else if (distanceFromCorner2 < distanceFromCorner1) {
-      return { closerCorner: corner2, fartherCorner: corner1, isEqual: false };
-    } else {
-      // Equal distance - 50/50 blend (5x5 middle edges)
-      return { closerCorner: corner1, fartherCorner: corner2, isEqual: true };
-    }
+    if (distanceFromCorner1 < distanceFromCorner2) return 'corner1';
+    if (distanceFromCorner2 < distanceFromCorner1) return 'corner2';
+    return 'equal';
   }, [gridSize]);
 
+  // Work out what an edge cell should contain based on its two adjacent corners.
+  // Returns an empty cell if either corner hasn't been blended down to a single color yet.
+  const computeEdgeCell = useCallback((edgeIndex: number, cellsToRead: PaletteCellType[]): PaletteCellType => {
+    const [corner1Index, corner2Index] = edges[edgeIndex];
+    const corner1 = cellsToRead[corner1Index];
+    const corner2 = cellsToRead[corner2Index];
+
+    // Edges only fill if BOTH adjacent corners are fully blended (only color1, no other colors)
+    const isBlended = (c: PaletteCellType) => !!c.color1 && !c.color2 && !c.color3 && !c.color4;
+    if (!isBlended(corner1) || !isBlended(corner2)) return emptyCell();
+
+    const c1 = corner1.color1!;
+    const c2 = corner2.color1!;
+
+    // Same color on both corners - edge only needs one copy
+    if (c1.r === c2.r && c1.g === c2.g && c1.b === c2.b) {
+      return { ...emptyCell(), color1: { ...c1 } };
+    }
+
+    // 3x3: edge cell contains both colors (50/50)
+    if (gridSize === 3) {
+      return { ...emptyCell(), color1: { ...c1 }, color2: { ...c2 } };
+    }
+
+    // 4x4/5x5: 2 parts from the closer corner, 1 part from the farther (or 50/50 when equidistant)
+    const proximity = getEdgeProximity(edgeIndex, corner1Index, corner2Index);
+    if (proximity === 'equal') {
+      return { ...emptyCell(), color1: { ...c1 }, color2: { ...c2 } };
+    }
+
+    const edgeOrientation = getEdgeOrientation(edgeIndex, gridSize);
+    const isVerticalEdge = edgeOrientation === 'left' || edgeOrientation === 'right';
+
+    let stripes: [Color, Color, Color];
+    if (isVerticalEdge) {
+      // Left/right edges are stored top-to-bottom (corner1 is always the top corner)
+      stripes = proximity === 'corner1' ? [c1, c1, c2] : [c1, c2, c2];
+    } else {
+      // Top/bottom edges are stored closer-corner first; PaletteCell flips the last cell in the row visually
+      const [closer, farther] = proximity === 'corner1' ? [c1, c2] : [c2, c1];
+      stripes = [closer, closer, farther];
+    }
+
+    return {
+      color1: { ...stripes[0] },
+      color2: { ...stripes[1] },
+      color3: { ...stripes[2] },
+      color4: null,
+      hasAllFourColors: false
+    };
+  }, [gridSize, edges, getEdgeProximity]);
+
+  // Fill (or clear) the inner cells in place. An inner cell only fills once the four edge
+  // cells in its row and column have each been blended down to a single color - until then
+  // it stays empty so it doesn't give away what the edges will blend to.
+  const fillInnerCells = useCallback((newCells: PaletteCellType[]): void => {
+    const blendedColor = (cell: PaletteCellType): Color | null =>
+      cell.color1 && !cell.color2 ? cell.color1 : null;
+
+    inner.forEach(innerIndex => {
+      const row = Math.floor(innerIndex / gridSize);
+      const col = innerIndex % gridSize;
+
+      const top = blendedColor(newCells[col]);                                 // Same column, top row
+      const bottom = blendedColor(newCells[(gridSize - 1) * gridSize + col]);  // Same column, bottom row
+      const left = blendedColor(newCells[row * gridSize]);                     // Same row, left column
+      const right = blendedColor(newCells[row * gridSize + (gridSize - 1)]);   // Same row, right column
+
+      if (!top || !bottom || !left || !right) {
+        newCells[innerIndex] = emptyCell();
+        return;
+      }
+
+      // Colors are stored [top, bottom, left, right], weighted 2:1 toward the edges the cell
+      // sits directly beside (in 3x3 every edge is adjacent, so the center blends equally)
+      const weightFor = (distance: number) => distance === 1 ? 2 : 1;
+      newCells[innerIndex] = {
+        color1: { ...top },
+        color2: { ...bottom },
+        color3: { ...left },
+        color4: { ...right },
+        hasAllFourColors: true,
+        weights: [
+          weightFor(row),                    // top
+          weightFor((gridSize - 1) - row),   // bottom
+          weightFor(col),                    // left
+          weightFor((gridSize - 1) - col)    // right
+        ]
+      };
+    });
+  }, [gridSize, inner]);
+
+  // Recompute the auto-filled cells (edges + inner) from the corners.
+  //  - changedCornerIndex: smart reset, only edges touching that corner are recomputed
+  //  - updateCenterOnly: leave edges alone (used after an edge is blended by hand)
   const updateAestheticPalette = useCallback((updatedCells: PaletteCellType[], changedCornerIndex?: number, updateCenterOnly: boolean = false) => {
     const newCells = [...updatedCells];
 
-    if (updateCenterOnly) {
-      // Only update inner cells (used when edges are blended)
-      const allEdgesBlended = Object.keys(edges).every(edgeIndex => {
-        const edge = newCells[parseInt(edgeIndex)];
-        // Edge is blended if it only has color1 (no color2/3/4)
-        return edge.color1 !== null && edge.color2 === null;
-      });
-
-      if (allEdgesBlended) {
-        // For 3x3: center cell shows 4 edge colors (only after edges are blended)
-        // For 4x4+: inner cells show 4 corner colors
-        if (gridSize === 3) {
-          // Edges are blended (only color1), so just get those colors
-          const edgeIndices = Object.keys(edges).map(k => parseInt(k)).sort((a, b) => a - b);
-          const edgeColors = edgeIndices.map(idx => newCells[idx].color1!);
-          const centerIndex = inner[0];
-          newCells[centerIndex] = {
-            color1: { ...edgeColors[0] },
-            color2: { ...edgeColors[1] },
-            color3: { ...edgeColors[2] },
-            color4: { ...edgeColors[3] },
-            hasAllFourColors: true
-          };
-        } else {
-          // For 4x4 and 5x5: inner cells show 4 corner colors
-          const cornerColors = corners.map(idx => newCells[idx].color1!);
-          inner.forEach(innerIndex => {
-            newCells[innerIndex] = {
-              color1: { ...cornerColors[0] },
-              color2: { ...cornerColors[1] },
-              color3: { ...cornerColors[2] },
-              color4: { ...cornerColors[3] },
-              hasAllFourColors: true
-            };
-          });
-        }
-      } else {
-        // Clear inner cells if edges aren't ready
-        inner.forEach(innerIndex => {
-          newCells[innerIndex] = {
-            color1: null,
-            color2: null,
-            color3: null,
-            color4: null,
-            hasAllFourColors: false
-          };
-        });
-      }
-    } else if (changedCornerIndex !== undefined) {
-      // Smart reset: only update cells affected by the changed corner
-      const affectedEdges: number[] = [];
-
-      // Find which edges are affected by this corner
-      Object.entries(edges).forEach(([edgeIndex, [corner1Index, corner2Index]]) => {
-        if (corner1Index === changedCornerIndex || corner2Index === changedCornerIndex) {
-          affectedEdges.push(parseInt(edgeIndex));
+    if (!updateCenterOnly) {
+      Object.entries(edges).forEach(([edgeIndexStr, [corner1Index, corner2Index]]) => {
+        const edgeIndex = parseInt(edgeIndexStr);
+        const isAffected = changedCornerIndex === undefined ||
+          corner1Index === changedCornerIndex ||
+          corner2Index === changedCornerIndex;
+        if (isAffected) {
+          newCells[edgeIndex] = computeEdgeCell(edgeIndex, newCells);
         }
       });
-
-      // Reset only the affected edge cells
-      affectedEdges.forEach(edgeIndex => {
-        const [corner1Index, corner2Index] = edges[edgeIndex];
-        const corner1 = newCells[corner1Index];
-        const corner2 = newCells[corner2Index];
-
-        // Edges only fill if BOTH adjacent corners are fully blended (only color1, no other colors)
-        const corner1IsBlended = corner1.color1 && !corner1.color2 && !corner1.color3 && !corner1.color4;
-        const corner2IsBlended = corner2.color1 && !corner2.color2 && !corner2.color3 && !corner2.color4;
-
-        if (corner1IsBlended && corner2IsBlended) {
-          // Check if both corners have the same color
-          const sameColor = corner1.color1!.r === corner2.color1!.r &&
-                           corner1.color1!.g === corner2.color1!.g &&
-                           corner1.color1!.b === corner2.color1!.b;
-
-          if (sameColor) {
-            // If same color, edge cell should only contain one copy
-            newCells[edgeIndex] = {
-              color1: { ...corner1.color1! },
-              color2: null,
-              color3: null,
-              color4: null,
-              hasAllFourColors: false
-            };
-          } else {
-            // Different colors - for 4x4/5x5 use weighted blend, for 3x3 use both colors
-            if (gridSize === 3) {
-              // 3x3: edge cell contains both colors (50/50)
-              newCells[edgeIndex] = {
-                color1: { ...corner1.color1! },
-                color2: { ...corner2.color1! },
-                color3: null,
-                color4: null,
-                hasAllFourColors: false
-              };
-            } else {
-              // 4x4/5x5: edge cell gets colors based on distance
-              const { closerCorner, fartherCorner, isEqual } = getEdgeCornersByDistance(edgeIndex, corner1Index, corner2Index, corner1.color1!, corner2.color1!);
-
-              // For left/right edges, ensure colors are in top-to-bottom order
-              const edgeOrientation = getEdgeOrientation(edgeIndex, gridSize);
-              const isVerticalEdge = edgeOrientation === 'left' || edgeOrientation === 'right';
-
-              // Determine correct color order
-              let firstColor, secondColor, thirdColor;
-              if (isVerticalEdge) {
-                // For left/right edges: corner1 is top, corner2 is bottom
-                // We want top corner first, bottom corner second
-                if (isEqual) {
-                  firstColor = corner1.color1!;
-                  secondColor = corner2.color1!;
-                } else {
-                  // Weighted: more of the closer corner
-                  const topIsCloser = closerCorner.r === corner1.color1!.r &&
-                                     closerCorner.g === corner1.color1!.g &&
-                                     closerCorner.b === corner1.color1!.b;
-                  if (topIsCloser) {
-                    firstColor = corner1.color1!;
-                    secondColor = corner1.color1!;
-                    thirdColor = corner2.color1!;
-                  } else {
-                    firstColor = corner1.color1!;
-                    secondColor = corner2.color1!;
-                    thirdColor = corner2.color1!;
-                  }
-                }
-              } else {
-                // For top/bottom edges: use distance-based order (left to right)
-                firstColor = closerCorner;
-                secondColor = isEqual ? fartherCorner : closerCorner;
-                thirdColor = fartherCorner;
-              }
-
-              if (isEqual) {
-                // Equal distance (5x5 middle edges) - 50/50 blend, store as 2 colors
-                newCells[edgeIndex] = {
-                  color1: { ...firstColor },
-                  color2: { ...secondColor },
-                  color3: null,
-                  color4: null,
-                  hasAllFourColors: false
-                };
-              } else {
-                // Weighted (closer edge) - 2/3 vs 1/3, store as 3 colors
-                newCells[edgeIndex] = {
-                  color1: { ...firstColor },
-                  color2: { ...secondColor },
-                  color3: { ...thirdColor! },
-                  color4: null,
-                  hasAllFourColors: false
-                };
-              }
-            }
-          }
-        } else {
-          // Clear edge if corners aren't ready
-          newCells[edgeIndex] = {
-            color1: null,
-            color2: null,
-            color3: null,
-            color4: null,
-            hasAllFourColors: false
-          };
-        }
-      });
-
-      // Update inner cells - for 3x3 only fill if edges are blended, for others just filled
-      const innerShouldFill = gridSize === 3
-        ? Object.keys(edges).every(edgeIndex => {
-            const edge = newCells[parseInt(edgeIndex)];
-            return edge.color1 !== null && edge.color2 === null; // Blended (only color1)
-          })
-        : Object.keys(edges).every(edgeIndex => {
-            const edge = newCells[parseInt(edgeIndex)];
-            return edge.color1 !== null; // Just filled
-          });
-
-      if (innerShouldFill) {
-        if (gridSize === 3) {
-          const edgeIndices = Object.keys(edges).map(k => parseInt(k)).sort((a, b) => a - b);
-          const edgeColors = edgeIndices.map(idx => newCells[idx].color1!);
-          const centerIndex = inner[0];
-          newCells[centerIndex] = {
-            color1: { ...edgeColors[0] },
-            color2: { ...edgeColors[1] },
-            color3: { ...edgeColors[2] },
-            color4: { ...edgeColors[3] },
-            hasAllFourColors: true
-          };
-        } else {
-          const cornerColors = corners.map(idx => newCells[idx].color1!);
-          inner.forEach(innerIndex => {
-            newCells[innerIndex] = {
-              color1: { ...cornerColors[0] },
-              color2: { ...cornerColors[1] },
-              color3: { ...cornerColors[2] },
-              color4: { ...cornerColors[3] },
-              hasAllFourColors: true
-            };
-          });
-        }
-      } else {
-        // Clear inner cells if edges aren't ready
-        inner.forEach(innerIndex => {
-          newCells[innerIndex] = {
-            color1: null,
-            color2: null,
-            color3: null,
-            color4: null,
-            hasAllFourColors: false
-          };
-        });
-      }
-    } else {
-      // Full update (for initial setup or when no specific corner changed)
-      Object.entries(edges).forEach(([edgeIndex, [corner1Index, corner2Index]]) => {
-        const index = parseInt(edgeIndex);
-        const corner1 = newCells[corner1Index];
-        const corner2 = newCells[corner2Index];
-
-        // Edges only fill if BOTH adjacent corners are fully blended (only color1, no other colors)
-        const corner1IsBlended = corner1.color1 && !corner1.color2 && !corner1.color3 && !corner1.color4;
-        const corner2IsBlended = corner2.color1 && !corner2.color2 && !corner2.color3 && !corner2.color4;
-
-        if (corner1IsBlended && corner2IsBlended) {
-          // Check if both corners have the same color
-          const sameColor = corner1.color1!.r === corner2.color1!.r &&
-                           corner1.color1!.g === corner2.color1!.g &&
-                           corner1.color1!.b === corner2.color1!.b;
-
-          if (sameColor) {
-            // If same color, edge cell should only contain one copy
-            newCells[index] = {
-              color1: { ...corner1.color1! },
-              color2: null,
-              color3: null,
-              color4: null,
-              hasAllFourColors: false
-            };
-          } else {
-            // Different colors - for 4x4/5x5 use weighted blend, for 3x3 use both colors
-            if (gridSize === 3) {
-              // 3x3: edge cell contains both colors (50/50)
-              newCells[index] = {
-                color1: { ...corner1.color1! },
-                color2: { ...corner2.color1! },
-                color3: null,
-                color4: null,
-                hasAllFourColors: false
-              };
-            } else {
-              // 4x4/5x5: edge cell gets colors based on distance
-              const { closerCorner, fartherCorner, isEqual } = getEdgeCornersByDistance(index, corner1Index, corner2Index, corner1.color1!, corner2.color1!);
-
-              // For left/right edges, ensure colors are in top-to-bottom order
-              const edgeOrientation = getEdgeOrientation(index, gridSize);
-              const isVerticalEdge = edgeOrientation === 'left' || edgeOrientation === 'right';
-
-              // Determine correct color order
-              let firstColor, secondColor, thirdColor;
-              if (isVerticalEdge) {
-                // For left/right edges: corner1 is top, corner2 is bottom
-                // We want top corner first, bottom corner second
-                if (isEqual) {
-                  firstColor = corner1.color1!;
-                  secondColor = corner2.color1!;
-                } else {
-                  // Weighted: more of the closer corner
-                  const topIsCloser = closerCorner.r === corner1.color1!.r &&
-                                     closerCorner.g === corner1.color1!.g &&
-                                     closerCorner.b === corner1.color1!.b;
-                  if (topIsCloser) {
-                    firstColor = corner1.color1!;
-                    secondColor = corner1.color1!;
-                    thirdColor = corner2.color1!;
-                  } else {
-                    firstColor = corner1.color1!;
-                    secondColor = corner2.color1!;
-                    thirdColor = corner2.color1!;
-                  }
-                }
-              } else {
-                // For top/bottom edges: check if it's the last edge cell in the row
-                const isTopEdge = edgeOrientation === 'top';
-                const isBottomEdge = edgeOrientation === 'bottom';
-                const isLastEdgeInRow = (index % gridSize) === (gridSize - 2);
-
-                if ((isTopEdge || isBottomEdge) && isLastEdgeInRow) {
-                  // Last edge cell: reverse order (right to left)
-                  firstColor = fartherCorner;
-                  secondColor = isEqual ? closerCorner : fartherCorner;
-                  thirdColor = closerCorner;
-                } else {
-                  // First/middle edge cells: normal order (left to right)
-                  firstColor = closerCorner;
-                  secondColor = isEqual ? fartherCorner : closerCorner;
-                  thirdColor = fartherCorner;
-                }
-              }
-
-              if (isEqual) {
-                // Equal distance (5x5 middle edges) - 50/50 blend, store as 2 colors
-                newCells[index] = {
-                  color1: { ...firstColor },
-                  color2: { ...secondColor },
-                  color3: null,
-                  color4: null,
-                  hasAllFourColors: false
-                };
-              } else {
-                // Weighted (closer edge) - 2/3 vs 1/3, store as 3 colors
-                newCells[index] = {
-                  color1: { ...firstColor },
-                  color2: { ...secondColor },
-                  color3: { ...thirdColor! },
-                  color4: null,
-                  hasAllFourColors: false
-                };
-              }
-            }
-          }
-        } else {
-          // Clear edge if corners aren't ready
-          newCells[index] = {
-            color1: null,
-            color2: null,
-            color3: null,
-            color4: null,
-            hasAllFourColors: false
-          };
-        }
-      });
-
-      // Update inner cells - for 3x3 only fill if edges are blended, for others just filled
-      const innerShouldFill = gridSize === 3
-        ? Object.keys(edges).every(edgeIndex => {
-            const edge = newCells[parseInt(edgeIndex)];
-            return edge.color1 !== null && edge.color2 === null; // Blended (only color1)
-          })
-        : Object.keys(edges).every(edgeIndex => {
-            const edge = newCells[parseInt(edgeIndex)];
-            return edge.color1 !== null; // Just filled
-          });
-
-      if (innerShouldFill) {
-        if (gridSize === 3) {
-          const edgeIndices = Object.keys(edges).map(k => parseInt(k)).sort((a, b) => a - b);
-          const edgeColors = edgeIndices.map(idx => newCells[idx].color1!);
-          const centerIndex = inner[0];
-          newCells[centerIndex] = {
-            color1: { ...edgeColors[0] },
-            color2: { ...edgeColors[1] },
-            color3: { ...edgeColors[2] },
-            color4: { ...edgeColors[3] },
-            hasAllFourColors: true
-          };
-        } else {
-          const cornerColors = corners.map(idx => newCells[idx].color1!);
-          inner.forEach(innerIndex => {
-            newCells[innerIndex] = {
-              color1: { ...cornerColors[0] },
-              color2: { ...cornerColors[1] },
-              color3: { ...cornerColors[2] },
-              color4: { ...cornerColors[3] },
-              hasAllFourColors: true
-            };
-          });
-        }
-      } else {
-        // Clear inner cells if edges aren't ready
-        inner.forEach(innerIndex => {
-          newCells[innerIndex] = {
-            color1: null,
-            color2: null,
-            color3: null,
-            color4: null,
-            hasAllFourColors: false
-          };
-        });
-      }
     }
 
+    fillInnerCells(newCells);
     return newCells;
-  }, [gridSize, corners, edges, inner, getEdgeCornersByDistance]);
+  }, [edges, computeEdgeCell, fillInnerCells]);
 
 
   const handleCellUpdate = useCallback((index: number, cell: PaletteCellType, shouldSaveHistory: boolean = true, skipAestheticUpdate: boolean = false) => {
@@ -642,13 +344,7 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
 
   const handleClearGrid = () => {
     if (confirm('Are you sure you want to clear all palette cells?')) {
-      const clearedCells = Array(9).fill(null).map(() => ({
-        color1: null,
-        color2: null,
-        color3: null,
-        color4: null,
-        hasAllFourColors: false
-      }));
+      const clearedCells = createEmptyCells(totalCells);
       setCells(clearedCells);
       clearHistory();
       // Save the cleared state as first history entry
@@ -666,16 +362,22 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
     exportPaletteAsImage(canvasRefs);
   };
 
-  const handleAutoBlend = () => {
-    console.log('=== AUTO BLEND CLICKED ===');
-    console.log('Grid Size:', gridSize);
-    console.log('Palette Type:', paletteType);
-    console.log('Corners:', corners);
-    console.log('Edges:', edges);
-    console.log('Inner:', inner);
-    console.log('Cells:', cells);
-    console.log('Canvas Refs:', canvasRefs);
+  // Paint a cell's canvas solid and return the collapsed (single-color) cell data
+  const blendCellToSolid = (index: number, cell: PaletteCellType): PaletteCellType | null => {
+    const blendedColor = getCellBlendColor(cell);
+    if (!blendedColor) return null;
 
+    const canvas = canvasRefs[index];
+    const ctx = canvas?.getContext('2d');
+    if (canvas && ctx) {
+      ctx.fillStyle = `rgb(${blendedColor.r}, ${blendedColor.g}, ${blendedColor.b})`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    return { ...emptyCell(), color1: blendedColor };
+  };
+
+  const handleAutoBlend = () => {
     // Array to collect all blended colors
     const blendedColors: Color[] = [];
 
@@ -683,217 +385,49 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
     let hasChanges = false;
 
     if (paletteType === 'aesthetic') {
-      console.log('AESTHETIC MODE BRANCH');
       // For aesthetic mode: blend corners first, then update edges and inner cells using auto-fill logic
       const newCells = [...cells];
 
-      // First, check current edges to see if they need blending (before auto-fill changes them)
-      console.log('Checking edges for blending...');
-      Object.keys(edges).forEach(edgeIndexStr => {
-        const index = parseInt(edgeIndexStr);
-        const cell = cells[index];
-
-        if (cell.color1 && cell.color2) {
-          // Edge has 2 colors - check if already blended
-          const medianR = Math.round((cell.color1.r + cell.color2.r) / 2);
-          const medianG = Math.round((cell.color1.g + cell.color2.g) / 2);
-          const medianB = Math.round((cell.color1.b + cell.color2.b) / 2);
-
-          const needsBlending =
-            cell.color1.r !== medianR ||
-            cell.color1.g !== medianG ||
-            cell.color1.b !== medianB;
-
-          if (needsBlending) {
-            hasChanges = true;
-          }
-        }
-      });
-
-      // Check inner cells (they have 4 colors that blend to 1)
-      inner.forEach(innerIndex => {
-        const innerCell = cells[innerIndex];
-        if (innerCell.hasAllFourColors && innerCell.color1 && innerCell.color2 && innerCell.color3 && innerCell.color4) {
-          // Inner cell has 4 colors - check if already blended
-          const medianR = Math.round((innerCell.color1.r + innerCell.color2.r + innerCell.color3.r + innerCell.color4.r) / 4);
-          const medianG = Math.round((innerCell.color1.g + innerCell.color2.g + innerCell.color3.g + innerCell.color4.g) / 4);
-          const medianB = Math.round((innerCell.color1.b + innerCell.color2.b + innerCell.color3.b + innerCell.color4.b) / 4);
-
-          const needsBlending =
-            innerCell.color1.r !== medianR ||
-            innerCell.color1.g !== medianG ||
-            innerCell.color1.b !== medianB;
-
-          if (needsBlending) {
-            hasChanges = true;
-          }
-        }
-      });
+      // Any cell still holding more than one color means blending will change something
+      hasChanges = cells.some(cell => !!cell.color1 && !!cell.color2);
 
       // Step 1: Blend all corner cells
-      console.log('Step 1: Blending corner cells...');
       corners.forEach(cornerIndex => {
-        const canvas = canvasRefs[cornerIndex];
-        console.log(`Corner ${cornerIndex}:`, canvas ? 'has canvas' : 'NO CANVAS');
-        if (!canvas) return;
-
-        const cell = newCells[cornerIndex];
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        // Skip if corner has no colors
-        if (!cell.color1) return;
-
-        // Check if this cell has multiple colors (needs blending)
-        if (cell.color2 || cell.color3 || cell.color4) {
-          hasChanges = true;
-        }
-
-        // Calculate median color for this corner
-        let medianR: number, medianG: number, medianB: number;
-
-        if (cell.hasAllFourColors && cell.color2 && cell.color3 && cell.color4) {
-          medianR = Math.round((cell.color1.r + cell.color2.r + cell.color3.r + cell.color4.r) / 4);
-          medianG = Math.round((cell.color1.g + cell.color2.g + cell.color3.g + cell.color4.g) / 4);
-          medianB = Math.round((cell.color1.b + cell.color2.b + cell.color3.b + cell.color4.b) / 4);
-        } else if (cell.color3) {
-          medianR = Math.round((cell.color1.r + cell.color2!.r + cell.color3.r) / 3);
-          medianG = Math.round((cell.color1.g + cell.color2!.g + cell.color3.g) / 3);
-          medianB = Math.round((cell.color1.b + cell.color2!.b + cell.color3.b) / 3);
-        } else if (cell.color2) {
-          medianR = Math.round((cell.color1.r + cell.color2.r) / 2);
-          medianG = Math.round((cell.color1.g + cell.color2.g) / 2);
-          medianB = Math.round((cell.color1.b + cell.color2.b) / 2);
-        } else {
-          medianR = cell.color1.r;
-          medianG = cell.color1.g;
-          medianB = cell.color1.b;
-        }
-
-        // Fill corner cell with median color
-        ctx.fillStyle = `rgb(${medianR}, ${medianG}, ${medianB})`;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Collect blended color
-        const blendedColor = { r: medianR, g: medianG, b: medianB };
-        blendedColors.push(blendedColor);
-
-        // Update cell data to reflect blended state (only color1, rest null)
-        newCells[cornerIndex] = {
-          color1: blendedColor,
-          color2: null,
-          color3: null,
-          color4: null,
-          hasAllFourColors: false
-        };
+        if (!canvasRefs[cornerIndex]) return;
+        const blended = blendCellToSolid(cornerIndex, newCells[cornerIndex]);
+        if (!blended) return;
+        blendedColors.push(blended.color1!);
+        newCells[cornerIndex] = blended;
       });
 
-      // Step 2: Update aesthetic palette (fills edges and center)
+      // Step 2: Update aesthetic palette (fills edges and inner cells)
       const updatedCells = updateAestheticPalette(newCells);
       // Don't set cells here - we'll do it after blending is complete to avoid multiple state updates
 
       // Step 3: Blend the edge cells visually and update their cell data
       setTimeout(() => {
         const finalCells = [...updatedCells];
-        const edgeColors: Color[] = [];
 
-        // First, blend all edge cells (not corners, not inner)
         Object.keys(edges).forEach(edgeIndexStr => {
           const index = parseInt(edgeIndexStr);
-          const canvas = canvasRefs[index];
-          const cell = finalCells[index];
-
-          if (!canvas || !cell.color1) return;
-
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return;
-
-          // Calculate median for edge cell
-          let medianR: number, medianG: number, medianB: number;
-
-          // For 4x4/5x5: edges have 3 colors (2 from closer corner, 1 from farther)
-          if (cell.color2 && cell.color3) {
-            medianR = Math.round((cell.color1.r + cell.color2.r + cell.color3.r) / 3);
-            medianG = Math.round((cell.color1.g + cell.color2.g + cell.color3.g) / 3);
-            medianB = Math.round((cell.color1.b + cell.color2.b + cell.color3.b) / 3);
-          }
-          // For 3x3: edges have 2 colors (50/50 from adjacent corners)
-          else if (cell.color2) {
-            medianR = Math.round((cell.color1.r + cell.color2.r) / 2);
-            medianG = Math.round((cell.color1.g + cell.color2.g) / 2);
-            medianB = Math.round((cell.color1.b + cell.color2.b) / 2);
-          }
-          // Edge with only 1 color (same corners)
-          else {
-            medianR = cell.color1.r;
-            medianG = cell.color1.g;
-            medianB = cell.color1.b;
-          }
-
-          // Fill edge cell with median color
-          ctx.fillStyle = `rgb(${medianR}, ${medianG}, ${medianB})`;
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-          // Store the blended edge color
-          const blendedColor = { r: medianR, g: medianG, b: medianB };
-          edgeColors.push(blendedColor);
-          blendedColors.push(blendedColor);
-
-          // Update edge cell data to reflect blended state
-          finalCells[index] = {
-            color1: blendedColor,
-            color2: null,
-            color3: null,
-            color4: null,
-            hasAllFourColors: false
-          };
+          if (!canvasRefs[index]) return;
+          const blended = blendCellToSolid(index, finalCells[index]);
+          if (!blended) return;
+          blendedColors.push(blended.color1!);
+          finalCells[index] = blended;
         });
 
-        // Step 3.5: For 3x3, update center cell with blended edge colors
-        if (gridSize === 3) {
-          const updatedWithCenter = updateAestheticPalette(finalCells, undefined, true);
-          updatedWithCenter.forEach((cell, idx) => {
-            finalCells[idx] = cell;
-          });
-        }
+        // Step 3.5: Recompute inner cells from the now-blended edges
+        fillInnerCells(finalCells);
 
         // Step 4: Blend all inner cells (center for 3x3, or multiple inner cells for 4x4/5x5)
-        console.log('Step 4: Blending inner cells. Inner indices:', inner);
         inner.forEach(innerIndex => {
           const innerCell = finalCells[innerIndex];
-          console.log(`  Inner cell ${innerIndex}:`, innerCell);
-          if (!innerCell.hasAllFourColors || !innerCell.color1 || !innerCell.color2 || !innerCell.color3 || !innerCell.color4) {
-            console.log(`    Skipping inner cell ${innerIndex} - not ready`);
-            return;
-          }
-          console.log(`    Blending inner cell ${innerIndex}`);
-
-          // Calculate the median of all 4 colors
-          const medianR = Math.round((innerCell.color1.r + innerCell.color2.r + innerCell.color3.r + innerCell.color4.r) / 4);
-          const medianG = Math.round((innerCell.color1.g + innerCell.color2.g + innerCell.color3.g + innerCell.color4.g) / 4);
-          const medianB = Math.round((innerCell.color1.b + innerCell.color2.b + innerCell.color3.b + innerCell.color4.b) / 4);
-
-          const innerBlendedColor = { r: medianR, g: medianG, b: medianB };
-          blendedColors.push(innerBlendedColor);
-
-          // Update inner cell data to reflect blended state (only color1)
-          finalCells[innerIndex] = {
-            color1: innerBlendedColor,
-            color2: null,
-            color3: null,
-            color4: null,
-            hasAllFourColors: false
-          };
-
-          // Blend the inner cell visually
-          const innerCanvas = canvasRefs[innerIndex];
-          if (innerCanvas) {
-            const ctx = innerCanvas.getContext('2d');
-            if (ctx) {
-              ctx.fillStyle = `rgb(${medianR}, ${medianG}, ${medianB})`;
-              ctx.fillRect(0, 0, innerCanvas.width, innerCanvas.height);
-            }
-          }
+          if (!innerCell.hasAllFourColors) return;
+          const blended = blendCellToSolid(innerIndex, innerCell);
+          if (!blended) return;
+          blendedColors.push(blended.color1!);
+          finalCells[innerIndex] = blended;
         });
 
         // Update state with final blended cells
@@ -914,105 +448,37 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
         }, 10);
       }, 50);
     } else {
-      console.log('MANUAL MODE BRANCH');
       // Manual mode: blend all cells that have colors
       const newCells = [...cells];
 
-      console.log('Processing cells in manual mode...');
       canvasRefs.forEach((canvas, index) => {
-        console.log(`Cell ${index}:`, canvas ? 'has canvas' : 'NO CANVAS', 'cell:', newCells[index]);
-        if (!canvas) {
-          console.log(`  Skipping cell ${index} - no canvas`);
-          return;
-        }
-
         const cell = newCells[index];
-        if (!cell) {
-          console.log(`  Skipping cell ${index} - cell is undefined`);
-          return;
-        }
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          console.log(`  Skipping cell ${index} - no context`);
-          return;
-        }
-
-        // Skip if cell has no colors
-        if (!cell.color1) {
-          console.log(`  Skipping cell ${index} - no color1`);
-          return;
-        }
-        console.log(`  Cell ${index} will be blended!`);
+        if (!canvas || !cell || !cell.color1) return;
 
         // Check if this cell has multiple colors (needs blending)
         if (cell.color2 || cell.color3 || cell.color4) {
           hasChanges = true;
         }
 
-        // Calculate the median color based on how many colors the cell has
-        let medianR: number, medianG: number, medianB: number;
-
-        if (cell.hasAllFourColors && cell.color2 && cell.color3 && cell.color4) {
-          medianR = Math.round((cell.color1.r + cell.color2.r + cell.color3.r + cell.color4.r) / 4);
-          medianG = Math.round((cell.color1.g + cell.color2.g + cell.color3.g + cell.color4.g) / 4);
-          medianB = Math.round((cell.color1.b + cell.color2.b + cell.color3.b + cell.color4.b) / 4);
-        } else if (cell.color3) {
-          medianR = Math.round((cell.color1.r + cell.color2!.r + cell.color3.r) / 3);
-          medianG = Math.round((cell.color1.g + cell.color2!.g + cell.color3.g) / 3);
-          medianB = Math.round((cell.color1.b + cell.color2!.b + cell.color3.b) / 3);
-        } else if (cell.color2) {
-          medianR = Math.round((cell.color1.r + cell.color2.r) / 2);
-          medianG = Math.round((cell.color1.g + cell.color2.g) / 2);
-          medianB = Math.round((cell.color1.b + cell.color2.b) / 2);
-        } else {
-          medianR = cell.color1.r;
-          medianG = cell.color1.g;
-          medianB = cell.color1.b;
-        }
-
-        // Collect blended color
-        const blendedColor = { r: medianR, g: medianG, b: medianB };
-        blendedColors.push(blendedColor);
-
-        // Update cell data to reflect blended state (only color1, rest null)
-        newCells[index] = {
-          color1: blendedColor,
-          color2: null,
-          color3: null,
-          color4: null,
-          hasAllFourColors: false
-        };
-
-        // Fill the entire cell with the median color
-        ctx.fillStyle = `rgb(${medianR}, ${medianG}, ${medianB})`;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        console.log(`  Cell ${index} blended to rgb(${medianR}, ${medianG}, ${medianB})`);
+        const blended = blendCellToSolid(index, cell);
+        if (!blended) return;
+        blendedColors.push(blended.color1!);
+        newCells[index] = blended;
       });
-
-      console.log('Done processing cells. hasChanges:', hasChanges, 'blendedColors:', blendedColors.length);
 
       // Update cells state
       setCells(newCells);
-      console.log('Cells state updated');
 
       // Save state after auto-blend (only if changes were made)
       if (hasChanges && !pendingSaveRef.current) {
-        console.log('Saving state...');
         pendingSaveRef.current = true;
         saveState(newCells, canvasRefs);
         pendingSaveRef.current = false;
-        console.log('State saved');
-      } else {
-        console.log('Not saving state. hasChanges:', hasChanges, 'pendingSaveRef:', pendingSaveRef.current);
       }
 
       // Call callback with all blended colors
       if (onAutoBlendCompleted && blendedColors.length > 0) {
-        console.log('Calling onAutoBlendCompleted with', blendedColors.length, 'colors');
         onAutoBlendCompleted(blendedColors);
-      } else {
-        console.log('Not calling onAutoBlendCompleted. callback exists:', !!onAutoBlendCompleted, 'colors:', blendedColors.length);
       }
     }
   };

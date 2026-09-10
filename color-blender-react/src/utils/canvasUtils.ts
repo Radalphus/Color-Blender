@@ -1,5 +1,5 @@
 import { Color, PaletteCell } from '../types';
-import { colorToRgbString } from './colorUtils';
+import { colorToRgbString, getCellBlendColor } from './colorUtils';
 
 export function drawBlendedColor(
   ctx: CanvasRenderingContext2D,
@@ -10,32 +10,9 @@ export function drawBlendedColor(
 ): void {
   if (!cell.color1 || !cell.color2) return;
 
-  let targetColor: Color;
-
-  // CELL WITH 4 COLORS - calculate the median/center color of all 4
-  if (cell.hasAllFourColors && cell.color3 && cell.color4) {
-    targetColor = {
-      r: Math.round((cell.color1.r + cell.color2.r + cell.color3.r + cell.color4.r) / 4),
-      g: Math.round((cell.color1.g + cell.color2.g + cell.color3.g + cell.color4.g) / 4),
-      b: Math.round((cell.color1.b + cell.color2.b + cell.color3.b + cell.color4.b) / 4)
-    };
-  }
-  // CELL WITH 3 COLORS - calculate the median/center color of all 3
-  else if (cell.color3) {
-    targetColor = {
-      r: Math.round((cell.color1.r + cell.color2.r + cell.color3.r) / 3),
-      g: Math.round((cell.color1.g + cell.color2.g + cell.color3.g) / 3),
-      b: Math.round((cell.color1.b + cell.color2.b + cell.color3.b) / 3)
-    };
-  }
-  // CELL WITH 2 COLORS - calculate the median/center color of both
-  else {
-    targetColor = {
-      r: Math.round((cell.color1.r + cell.color2.r) / 2),
-      g: Math.round((cell.color1.g + cell.color2.g) / 2),
-      b: Math.round((cell.color1.b + cell.color2.b) / 2)
-    };
-  }
+  // Median of all the cell's colors (weighted for 4x4/5x5 aesthetic inner cells)
+  const targetColor = getCellBlendColor(cell);
+  if (!targetColor) return;
 
   // Paint with solid color (no smudging, no gradual mixing)
   ctx.fillStyle = colorToRgbString(targetColor);
@@ -215,56 +192,35 @@ export function fillCellWithFourColorsTriangles(
   canvas: HTMLCanvasElement,
   colors: [Color, Color, Color, Color]
 ): void {
-  // Draw 4 triangular wedges radiating from the center
-  // colors[0] = top edge, colors[1] = right edge, colors[2] = bottom edge, colors[3] = left edge
-  // Rotated counter-clockwise: top stays, right->bottom, bottom->left, left->right
+  // Draw 4 triangular wedges radiating from the center, one per side of the cell.
+  // colors = [top, bottom, left, right]; each wedge faces the edge its color came from.
+  const [top, bottom, left, right] = colors;
+
   const centerX = Math.floor(canvas.width / 2);
   const centerY = Math.floor(canvas.height / 2);
+  const width = Math.floor(canvas.width);
+  const height = Math.floor(canvas.height);
 
-  // Disable anti-aliasing for crisp edges
+  // Keep anti-aliasing off (and leave it off) so wedge seams don't show white lines
   ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, width, height);
 
-  // Clear any existing content
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const wedges: Array<[Color, number, number, number, number]> = [
+    [top, 0, 0, width, 0],
+    [right, width, 0, width, height],
+    [bottom, width, height, 0, height],
+    [left, 0, height, 0, 0]
+  ];
 
-  // Top triangle (color 0) - stays the same
-  ctx.fillStyle = colorToRgbString(colors[0]);
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(canvas.width, 0);
-  ctx.lineTo(centerX, centerY);
-  ctx.closePath();
-  ctx.fill();
-
-  // Right triangle - gets bottom edge color (color 2)
-  ctx.fillStyle = colorToRgbString(colors[2]);
-  ctx.beginPath();
-  ctx.moveTo(canvas.width, 0);
-  ctx.lineTo(canvas.width, canvas.height);
-  ctx.lineTo(centerX, centerY);
-  ctx.closePath();
-  ctx.fill();
-
-  // Bottom triangle - gets left edge color (color 3)
-  ctx.fillStyle = colorToRgbString(colors[3]);
-  ctx.beginPath();
-  ctx.moveTo(canvas.width, canvas.height);
-  ctx.lineTo(0, canvas.height);
-  ctx.lineTo(centerX, centerY);
-  ctx.closePath();
-  ctx.fill();
-
-  // Left triangle - gets right edge color (color 1)
-  ctx.fillStyle = colorToRgbString(colors[1]);
-  ctx.beginPath();
-  ctx.moveTo(0, canvas.height);
-  ctx.lineTo(0, 0);
-  ctx.lineTo(centerX, centerY);
-  ctx.closePath();
-  ctx.fill();
-
-  // Re-enable anti-aliasing
-  ctx.imageSmoothingEnabled = true;
+  wedges.forEach(([color, x1, y1, x2, y2]) => {
+    ctx.fillStyle = colorToRgbString(color);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.lineTo(centerX, centerY);
+    ctx.closePath();
+    ctx.fill();
+  });
 }
 
 export function clearCanvas(

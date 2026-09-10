@@ -1,4 +1,4 @@
-import { Color } from '../types';
+import { Color, PaletteCell } from '../types';
 import { COLOR_TOLERANCE } from '../constants';
 import { colornames } from 'color-name-list';
 
@@ -41,6 +41,36 @@ export function mixColors(c1: Color, c2: Color, ratio: number): Color {
     r: Math.round(c1.r * (1 - ratio) + c2.r * ratio),
     g: Math.round(c1.g * (1 - ratio) + c2.g * ratio),
     b: Math.round(c1.b * (1 - ratio) + c2.b * ratio)
+  };
+}
+
+/**
+ * Calculate the color a cell blends to: the average of all colors it holds.
+ * If the cell carries weights (4x4/5x5 aesthetic inner cells), each color is
+ * weighted so closer edges contribute more.
+ * @returns The blended color, or null if the cell is empty
+ */
+export function getCellBlendColor(cell: PaletteCell): Color | null {
+  const colors = [cell.color1, cell.color2, cell.color3, cell.color4]
+    .filter((c): c is Color => !!c);
+  if (colors.length === 0) return null;
+
+  const weights = cell.weights && colors.length === 4
+    ? cell.weights
+    : colors.map(() => 1);
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+
+  let r = 0, g = 0, b = 0;
+  colors.forEach((color, i) => {
+    r += color.r * weights[i];
+    g += color.g * weights[i];
+    b += color.b * weights[i];
+  });
+
+  return {
+    r: Math.round(r / totalWeight),
+    g: Math.round(g / totalWeight),
+    b: Math.round(b / totalWeight)
   };
 }
 
