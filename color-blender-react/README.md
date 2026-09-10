@@ -90,6 +90,13 @@ The production build will be in the `dist/` directory.
 npm run preview
 ```
 
+### Deployment
+
+The app is hosted on GitHub Pages at https://radalphus.github.io/Color-Blender/.
+Deployment is automatic: every push to `main` triggers `.github/workflows/deploy.yml`,
+which runs `npm ci` and `npm run build` and publishes `dist/` with the official
+GitHub Pages actions. There is no manual deploy step.
+
 ## How to Use
 
 ### Manual Palette Mode

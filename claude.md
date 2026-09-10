@@ -220,6 +220,14 @@ The application has been fully migrated to React + TypeScript with modular archi
 - [x] **Clear Palette Fix**: Clear now resets `gridSize²` cells instead of a hard-coded 9
 - [x] **Cleanup**: Removed debug logging and duplicated inner-cell code from `PaletteGrid.tsx`
 
+### Phase 17: Automatic GitHub Pages Deployment (v2.8) ✅
+- [x] **GitHub Actions Workflow**: `.github/workflows/deploy.yml` builds and publishes on every push to `main`
+- [x] **Official Pages Actions**: `configure-pages` → `upload-pages-artifact` → `deploy-pages` with least-privilege permissions and a `pages` concurrency group
+- [x] **Manual Trigger**: `workflow_dispatch` lets the deploy be re-run from the Actions tab
+- [x] **Pages Source Switched**: Repo setting changed from "Deploy from a branch" to "GitHub Actions"
+- [x] **Retired Branch Deploys**: Deleted `gh-pages` branch, removed `gh-pages` package and `deploy`/`predeploy` scripts
+- [x] **Verified**: First Actions run succeeded and the live site serves the same bundle hash as the local build
+
 ---
 
 ## Technical Implementation Details
@@ -503,18 +511,28 @@ ctx.fill()
 1. Run `npm run build` in `color-blender-react/`
 2. Deploy the `dist/` folder to any static hosting
 
-### Option 3: GitHub Pages (DEPLOYED - Current) ✅
-**Live URL**: [Your GitHub Pages URL]
-1. Build: `npm run build`
-2. Deploy `dist/` folder to gh-pages branch
-3. Enable GitHub Pages in settings
-4. Update `vite.config.ts` with correct base path
-5. Automatic HTTPS and free hosting
+### Option 3: GitHub Pages via GitHub Actions (DEPLOYED - Current) ✅
+**Live URL**: https://radalphus.github.io/Color-Blender/
+
+Deployment is fully automatic. Every push to `main` runs
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), which:
+1. Checks out the repo and sets up Node 20 (npm cache keyed on `color-blender-react/package-lock.json`)
+2. Runs `npm ci` and `npm run build` in `color-blender-react/`
+3. Uploads `color-blender-react/dist` with `actions/upload-pages-artifact`
+4. Publishes it with `actions/deploy-pages` (permissions: `contents: read`, `pages: write`, `id-token: write`; concurrency group `pages`)
+
+The workflow can also be started by hand from the **Actions** tab (**Run workflow**).
+A failed build leaves the previous version of the site live.
+
+**One-time setup (done):** GitHub → Settings → Pages → Source = **GitHub Actions**.
+
+**Retired:** the `gh-pages` branch, the `gh-pages` npm package and the `npm run deploy` /
+`predeploy` scripts were removed in v2.8 - nothing needs to be run manually anymore.
 
 **Configuration in vite.config.ts:**
 ```typescript
 export default defineConfig({
-  base: '/Color-Blender/', // or your repo name
+  base: '/Color-Blender/', // must match the repo name for GitHub Pages
   plugins: [react()],
 })
 ```
@@ -547,6 +565,8 @@ export default defineConfig({
 - Fixed Clear Palette only resetting 9 cells on 4x4/5x5 grids
 - Removed unused `fillCellWithFourColorsWeighted`, debug logging, and three copies of the inner-cell code
 - Verified with a headless-browser pixel check of every cell for 3x3, 4x4 and 5x5
+- Added `.github/workflows/deploy.yml` - GitHub Pages now deploys automatically on every push to `main`
+- Removed the `gh-pages` branch, the `gh-pages` devDependency and the `deploy`/`predeploy` npm scripts
 
 ### v2.7 - December 14, 2025
 **Color Names & Variable Grid Sizes**
@@ -762,5 +782,5 @@ Free to use and modify for personal and commercial projects.
 **Last Updated**: September 10, 2026
 **Current Version**: v2.8 - Weighted Aesthetic Gradients
 **Status**: Production Ready & Deployed ✅
-**Live on**: GitHub Pages
+**Live on**: GitHub Pages (auto-deployed by GitHub Actions) - https://radalphus.github.io/Color-Blender/
 **Next Milestone**: Load saved palettes feature or palette library system
