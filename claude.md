@@ -5,7 +5,7 @@ A web-based color blending application that allows users to upload images, pick 
 
 ---
 
-## Current Status: ✅ COMPLETE - Version 2.8 (React + TypeScript)
+## Current Status: ✅ COMPLETE - Version 2.9 (React + TypeScript)
 
 The application has been fully migrated to React + TypeScript with modular architecture, enhanced UX improvements, full undo/redo support, intuitive click-based interaction system, color naming feature, and variable grid sizes (3x3, 4x4, 5x5)!
 
@@ -228,6 +228,16 @@ The application has been fully migrated to React + TypeScript with modular archi
 - [x] **Retired Branch Deploys**: Deleted `gh-pages` branch, removed `gh-pages` package and `deploy`/`predeploy` scripts
 - [x] **Verified**: First Actions run succeeded and the live site serves the same bundle hash as the local build
 
+### Phase 18: Arcade HUD Redesign & Scroll-Reactive LED Backdrop (v2.9) ✅
+- [x] **Game UI Theme**: Full restyle as a sci-fi game HUD - Orbitron/Rajdhani type, uppercase tracked labels, neon accents, glass panels with corner brackets
+- [x] **LED Backdrop**: Fixed five-layer background (`LedBackdrop.tsx`) - neon colour field, light sweep, dot-matrix mask, scanlines, scroll progress strip
+- [x] **Scroll-Reactive Lights**: `useScrollEnergy` writes `--scroll`, `--scroll-y` and `--scroll-energy`; the field hue-rotates through 300° over the page and blooms brighter the faster you scroll, easing back down when you stop
+- [x] **Dot-Matrix Mask**: The colour field shows only through a 7px hole grid, so the background reads as a wall of individual LEDs rather than a flat gradient
+- [x] **Unlit-LED Cells**: Empty palette cells show a faint dot grid that the canvas paints over when filled
+- [x] **Dark By Default**: Night theme is now the default and the choice persists in localStorage; day mode restyled as a bright arcade cabinet
+- [x] **Idle-Cheap Animation**: The rAF loop only runs while scroll energy is decaying, and everything respects `prefers-reduced-motion`
+- [x] **Verified**: Full 4x4 aesthetic flow re-tested in a headless browser (16/16 cells correct), no console errors, no horizontal overflow at 390px
+
 ---
 
 ## Technical Implementation Details
@@ -243,9 +253,11 @@ Color-Blender/
 │   │   │   ├── PaletteGrid.tsx
 │   │   │   ├── GridSizeSelector.tsx  # Grid size selection UI
 │   │   │   ├── ColorHistory.tsx  # Color history display
+│   │   │   ├── LedBackdrop.tsx   # Scroll-reactive LED background
 │   │   │   └── Instructions.tsx
 │   │   ├── hooks/               # Custom React hooks
-│   │   │   └── useHistory.ts    # Undo/redo state management
+│   │   │   ├── useHistory.ts    # Undo/redo state management
+│   │   │   └── useScrollEnergy.ts # Scroll -> CSS variable driver
 │   │   ├── utils/               # Utility functions
 │   │   │   ├── colorUtils.ts
 │   │   │   ├── canvasUtils.ts
@@ -351,6 +363,14 @@ ctx.fill()
 - **Duplicate Prevention**: Can't save same color twice (±3 RGB tolerance)
 - **Persistent Actions**: Save/remove buttons appear on hover
 - **Full Night Mode**: Tabs, buttons, and all elements support dark theme
+
+#### Scroll-Reactive LED Backdrop (v2.9+)
+- **Layers** (`LedBackdrop.tsx`, fixed and pointer-events: none): `led-field` (neon blobs) → `led-sweep` (travelling light bar) → `led-grid` (dot-matrix mask) → `led-scan` (scanlines + vignette) → `led-strip` (scroll progress)
+- **CSS variables** (`useScrollEnergy.ts`, written on `<html>`): `--scroll` 0→1 page progress, `--scroll-y` raw px, `--scroll-energy` 0→1 scroll speed
+- **Hue shift**: `filter: hue-rotate(calc(var(--scroll) * 300deg))` on the field, plus a parallax `translateY`
+- **Bloom**: `--scroll-energy` raises saturation/brightness and the strip's glow while moving, then eases back to 0
+- **LED illusion**: `radial-gradient(circle, transparent 0 34%, var(--led-mask) 62%)` at `background-size: 7px` masks the field into discrete dots
+- **Cost**: the animation frame loop stops once energy decays below 0.003; all motion is disabled under `prefers-reduced-motion`
 
 #### Weighted Aesthetic Gradients (v2.8+)
 - **Edges (4x4/5x5)**: Stored as 3 stripes `[closer, closer, farther]` so the median is 2/3 nearer corner + 1/3 farther corner; equidistant 5x5 middle edges store 2 stripes (50/50)
@@ -553,7 +573,19 @@ export default defineConfig({
 
 ## Version History
 
-### v2.8 - September 10, 2026 (Current)
+### v2.9 - September 29, 2026 (Current)
+**Arcade HUD Redesign & Scroll-Reactive LED Backdrop**
+- Rebuilt the visual design as a game HUD: Orbitron + Rajdhani typography, neon gradient title with chromatic echo, glass panels with corner brackets, sheen-sweep buttons, glowing active states
+- Added a fixed five-layer LED backdrop that hue-shifts as you scroll and blooms brighter the faster you move
+- Background is masked into a 7px dot grid so it reads as a wall of LEDs, not a flat gradient
+- Added a scroll progress LED strip along the top edge
+- Empty palette cells now show an unlit dot-matrix pattern
+- Night theme is the default; the choice persists in localStorage
+- Day mode restyled as a bright arcade cabinet with the same LED backdrop
+- Animation frame loop idles at zero cost; full `prefers-reduced-motion` support
+- New files: `src/components/LedBackdrop.tsx`, `src/hooks/useScrollEnergy.ts`
+
+### v2.8 - September 10, 2026
 **Weighted Aesthetic Gradients for 4x4/5x5**
 - 4x4/5x5 inner cells now derive from the adjacent edge cells (top/bottom/left/right) rather than the 4 corners
 - Inner cells stay empty until their four edges are blended (per cell), so hand-blending edges keeps its reveal
@@ -779,8 +811,8 @@ Free to use and modify for personal and commercial projects.
 
 ---
 
-**Last Updated**: September 10, 2026
-**Current Version**: v2.8 - Weighted Aesthetic Gradients
+**Last Updated**: September 29, 2026
+**Current Version**: v2.9 - Arcade HUD Redesign
 **Status**: Production Ready & Deployed ✅
 **Live on**: GitHub Pages (auto-deployed by GitHub Actions) - https://radalphus.github.io/Color-Blender/
 **Next Milestone**: Load saved palettes feature or palette library system

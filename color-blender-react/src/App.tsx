@@ -5,6 +5,7 @@ import { PaletteGrid } from './components/PaletteGrid';
 import { GridSizeSelector } from './components/GridSizeSelector';
 import { Instructions } from './components/Instructions';
 import { ColorHistory } from './components/ColorHistory';
+import { LedBackdrop } from './components/LedBackdrop';
 import { useColorHistory } from './hooks/useColorHistory';
 import { useSavedColors } from './hooks/useSavedColors';
 import { compareColors } from './utils/colorUtils';
@@ -13,7 +14,15 @@ import './App.css';
 function App() {
   const [selectedColor, setSelectedColor] = useState<Color | null>(null);
   const [paletteType, setPaletteType] = useState<PaletteType>('manual');
-  const [nightMode, setNightMode] = useState<boolean>(false);
+  const [nightMode, setNightMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('colorBlenderNightMode');
+    return saved === null ? true : saved === 'true';
+  });
+
+  // Remember the theme choice between visits
+  useEffect(() => {
+    localStorage.setItem('colorBlenderNightMode', String(nightMode));
+  }, [nightMode]);
 
   // Grid size state with localStorage persistence
   const [gridSize, setGridSize] = useState<GridSize>(() => {
@@ -51,11 +60,14 @@ function App() {
   }, []);
 
   return (
-    <div className={`container ${nightMode ? 'night-mode' : ''}`}>
+    <div className={`app-shell ${nightMode ? 'night-mode' : 'day-mode'}`}>
+      <LedBackdrop />
+
+      <div className="container">
       <header>
         <div className="header-content">
-          <div>
-            <h1>Color Blender</h1>
+          <div className="header-titles">
+            <h1 data-text="Color Blender">Color Blender</h1>
             <p>Upload an image, pick colors, and blend them on your palette</p>
           </div>
           <button
@@ -84,13 +96,13 @@ function App() {
               className={`palette-type-btn ${paletteType === 'manual' ? 'active' : ''}`}
               onClick={() => setPaletteType('manual')}
             >
-              ⚙️ Manual Palette
+              <span aria-hidden="true">⚙</span> Manual Palette
             </button>
             <button
               className={`palette-type-btn ${paletteType === 'aesthetic' ? 'active' : ''}`}
               onClick={() => setPaletteType('aesthetic')}
             >
-              ✨ Aesthetic Palette
+              <span aria-hidden="true">✦</span> Aesthetic Palette
             </button>
           </div>
           <PaletteGrid
@@ -113,6 +125,7 @@ function App() {
       />
 
       <Instructions paletteType={paletteType} />
+      </div>
     </div>
   );
 }
