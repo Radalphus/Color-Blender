@@ -97,6 +97,15 @@ Deployment is automatic: every push to `main` triggers `.github/workflows/deploy
 which runs `npm ci` and `npm run build` and publishes `dist/` with the official
 GitHub Pages actions. There is no manual deploy step.
 
+## Game Modes
+
+The app opens on a hub with two playable modes:
+
+- **Match Mode** - 12 levels. Each gives you a tricky target color and a pixel-art image. Pick any colors from the image, add them to a single mixing cell, blend, and lock in. Later levels mix in steps: blend, add more colors, blend again, so earlier colors count for less. 90% match clears the level, 95% earns 2 stars, 98% earns 3. Finishing under par adds bonus points, back-to-back 3-star clears multiply your score up to x3, and the recipe is revealed after each round. XP, levels and stars are saved in your browser.
+- **Studio** - free play: the original Color Blender described below.
+
+Daily Blend, Gradient Puzzle and Chromadex are planned and show as coming soon.
+
 ## How to Use
 
 ### Manual Palette Mode

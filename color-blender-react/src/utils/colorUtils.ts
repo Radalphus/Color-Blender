@@ -89,8 +89,71 @@ export function getColorFromImageData(
   };
 }
 
+/**
+ * How closely two colors match, as a percentage (100 = identical).
+ * Same scale the color names use: the largest possible RGB distance (~441) maps to 0%.
+ * Rounded down to one decimal so only an exact match reads 100%.
+ */
+export function colorMatchPercent(c1: Color, c2: Color): number {
+  const similarity = Math.max(0, 100 - colorDistance(c1, c2) / 4.41);
+  return Math.floor(similarity * 10) / 10;
+}
+
+export function hexToColor(hex: string): Color {
+  return {
+    r: parseInt(hex.slice(1, 3), 16),
+    g: parseInt(hex.slice(3, 5), 16),
+    b: parseInt(hex.slice(5, 7), 16)
+  };
+}
+
 // Cache for color names to avoid recalculating
 const colorNameCache = new Map<string, string>();
+const closestNameCache = new Map<string, { name: string; distance: number }>();
+
+/**
+ * Find the closest entry in the color-name-list library (30,000+ names)
+ * Cached, with an early exit on an exact match
+ */
+function findClosestNamedColor(color: Color): { name: string; distance: number } {
+  const cacheKey = `${color.r},${color.g},${color.b}`;
+  const cached = closestNameCache.get(cacheKey);
+  if (cached) return cached;
+
+  let closestColor: ColorNameEntry | null = null;
+  let minDistance = Infinity;
+
+  for (const entry of colornames) {
+    // Convert hex to RGB for distance calculation
+    const hexColor = entry.hex;
+    if (!hexColor || hexColor.length < 7) continue;
+
+    const distance = colorDistance(color, hexToColor(hexColor));
+
+    // Early exit if we found an exact match (distance = 0)
+    if (distance === 0) {
+      closestColor = entry;
+      minDistance = 0;
+      break;
+    }
+
+    if (distance < minDistance) {
+      minDistance = distance;
+      closestColor = entry;
+    }
+  }
+
+  const result = { name: closestColor?.name || 'Unknown Color', distance: minDistance };
+  closestNameCache.set(cacheKey, result);
+  return result;
+}
+
+/**
+ * The closest color name with no match-quality suffix (e.g. "Twilight")
+ */
+export function getClosestColorName(color: Color): string {
+  return findClosestNamedColor(color).name;
+}
 
 /**
  * Get the closest color name for a given RGB color
@@ -109,35 +172,7 @@ export function getColorName(color: Color, compact: boolean = false): string {
     return colorNameCache.get(cacheKey)!;
   }
 
-  // Find the closest color by calculating distance
-  let closestColor: ColorNameEntry | null = null;
-  let minDistance = Infinity;
-
-  for (const entry of colornames) {
-    // Convert hex to RGB for distance calculation
-    const hexColor = entry.hex;
-    if (!hexColor || hexColor.length < 7) continue;
-
-    const r = parseInt(hexColor.slice(1, 3), 16);
-    const g = parseInt(hexColor.slice(3, 5), 16);
-    const b = parseInt(hexColor.slice(5, 7), 16);
-
-    const distance = colorDistance(color, { r, g, b });
-
-    // Early exit if we found an exact match (distance = 0)
-    if (distance === 0) {
-      closestColor = entry;
-      minDistance = 0;
-      break;
-    }
-
-    if (distance < minDistance) {
-      minDistance = distance;
-      closestColor = entry;
-    }
-  }
-
-  const baseName = closestColor?.name || 'Unknown Color';
+  const { name: baseName, distance: minDistance } = findClosestNamedColor(color);
   let colorName = baseName;
 
   // Add match quality indicator if not exact match

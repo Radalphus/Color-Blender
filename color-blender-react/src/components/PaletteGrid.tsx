@@ -26,9 +26,26 @@ interface PaletteGridProps {
   paletteType: PaletteType;
   onBlendedColorCreated?: (color: Color) => void;
   onAutoBlendCompleted?: (colors: Color[]) => void;
+  /** Reports the active palette's cells whenever they change */
+  onCellsChange?: (cells: PaletteCellType[]) => void;
+  title?: string;
+  /** Clear / Save / Export buttons */
+  showFileActions?: boolean;
+  /** Ctrl+Z / Ctrl+Y; turn off while this grid is hidden so it doesn't steal them */
+  shortcutsEnabled?: boolean;
 }
 
-export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedColorCreated, onAutoBlendCompleted }: PaletteGridProps) {
+export function PaletteGrid({
+  gridSize,
+  selectedColor,
+  paletteType,
+  onBlendedColorCreated,
+  onAutoBlendCompleted,
+  onCellsChange,
+  title = 'Color Palette',
+  showFileActions = true,
+  shortcutsEnabled = true
+}: PaletteGridProps) {
   // Get grid configuration based on gridSize
   const { totalCells, corners, edges, inner, canvasSize } = getGridConfig(gridSize);
 
@@ -159,8 +176,14 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paletteType]); // Run when palette type changes
 
+  useEffect(() => {
+    onCellsChange?.(cells);
+  }, [cells, onCellsChange]);
+
   // Keyboard shortcuts for undo/redo
   useEffect(() => {
+    if (!shortcutsEnabled) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -173,7 +196,7 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo]);
+  }, [handleUndo, handleRedo, shortcutsEnabled]);
 
   // For 4x4/5x5 edges: is this edge cell closer to corner1, corner2, or equidistant (5x5 middle edges)?
   const getEdgeProximity = useCallback((edgeIndex: number, corner1Index: number, corner2Index: number): 'corner1' | 'corner2' | 'equal' => {
@@ -485,7 +508,7 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
 
   return (
     <div className="grid-section">
-      <h2>Color Palette</h2>
+      <h2>{title}</h2>
       <div className="palette-grid" data-grid-size={gridSize}>
         {cells.map((cell, index) => (
           <PaletteCell
@@ -515,17 +538,19 @@ export function PaletteGrid({ gridSize, selectedColor, paletteType, onBlendedCol
             ⚡ Auto Blend
           </button>
         </div>
-        <div className="control-group">
-          <button onClick={handleClearGrid} className="btn">
-            Clear Palette
-          </button>
-          <button onClick={handleSavePalette} className="btn btn-primary">
-            Save Palette
-          </button>
-          <button onClick={handleExportPalette} className="btn btn-primary">
-            Export as Image
-          </button>
-        </div>
+        {showFileActions && (
+          <div className="control-group">
+            <button onClick={handleClearGrid} className="btn">
+              Clear Palette
+            </button>
+            <button onClick={handleSavePalette} className="btn btn-primary">
+              Save Palette
+            </button>
+            <button onClick={handleExportPalette} className="btn btn-primary">
+              Export as Image
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

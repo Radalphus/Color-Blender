@@ -5,7 +5,7 @@ A web-based color blending application that allows users to upload images, pick 
 
 ---
 
-## Current Status: ✅ COMPLETE - Version 2.9 (React + TypeScript)
+## Current Status: ✅ COMPLETE - Version 3.0 (React + TypeScript)
 
 The application has been fully migrated to React + TypeScript with modular architecture, enhanced UX improvements, full undo/redo support, intuitive click-based interaction system, color naming feature, and variable grid sizes (3x3, 4x4, 5x5)!
 
@@ -238,6 +238,23 @@ The application has been fully migrated to React + TypeScript with modular archi
 - [x] **Idle-Cheap Animation**: The rAF loop only runs while scroll energy is decaying, and everything respects `prefers-reduced-motion`
 - [x] **Verified**: Full 4x4 aesthetic flow re-tested in a headless browser (16/16 cells correct), no console errors, no horizontal overflow at 390px
 
+### Phase 19: Game Mode, Stage 1 - Hub, Match Mode & Progression (v3.0) ✅
+- [x] **Design First**: Gamification concept mocked up as a six-screen Claude Design canvas (hub, Match round, results, Gradient Puzzle, Chromadex, profile) before any code
+- [x] **Hub Screen**: New home screen with Match Mode and Studio tiles; Daily Blend, Gradient Puzzle and Chromadex shown as locked "coming soon" modes
+- [x] **Studio**: The original app moved unchanged into `screens/Studio.tsx`; it stays mounted while hidden so its image and palette survive a trip to the hub
+- [x] **Hash Routing**: `#/`, `#/studio`, `#/match`, `#/match/<level>` - works on GitHub Pages, survives refresh, browser back button works
+- [x] **Match Mode**: 12 World 1 levels; each gives a target color and a pixel-art source image; pick any colors (unlimited), mix them in a single large mixing cell, lock in once the cell is a single color
+- [x] **Single Mixing Cell**: Reuses `PaletteCell` (click to add, hold-and-drag to blend, double-click to clear) plus Blend, Undo and Clear buttons; blending and then adding more colors mixes in stages
+- [x] **Complex Recipes**: 1-1 is a 2-color mix; 1-2 to 1-4 use 3 colors; 1-5, 1-6, 1-8 use 4; 1-7 and 1-9 to 1-12 are staged (blend, add more, blend again) up to 3 steps and 4 colors - all colors in a recipe are different
+- [x] **Fair Levels**: Recipes chosen by a search over each picture's colors: reachable at exactly 100% (replayed with `getCellBlendColor`), every recipe color covers at least 6 cells, no single image color reaches 90% (so nothing clears without mixing), and simpler mixes stay under 97% so 3 stars needs the real recipe
+- [x] **Themed Pictures**: Each level is a pixel-art scene built from named layers (orchard trees with fruit, a boat in a lagoon, cacti, a temple, neon city in the rain, reef with coral and fish, windmill, lanterns, tea house and koi pond, rainbow over a peak); every color belongs to something in the picture and fits the level's name. Drawn with no smoothing, so every pixel is an exact scene color
+- [x] **Scoring**: Stars at 90 / 95 / 98% match; score = accuracy + time bonus under a per-level par (30s + 15s per color and per extra step), times a combo multiplier (x2, x3 for back-to-back 3-star clears)
+- [x] **XP & Ranks**: 25 XP per clear + 50 per new star; player levels and rank titles (Pixel Rookie, Hue Hunter, Tint Tactician, Shade Sorcerer, Chroma Master) shown in a new top bar
+- [x] **Progress Saved**: XP, combo and per-level bests stored in localStorage (`colorBlenderProgress`); each level unlocks when the previous one is cleared
+- [x] **Results Screen**: Stars, target vs. your blend, score breakdown, XP bar with level-up callout, the recipe revealed step by step, Next level / Retry / All levels
+- [x] **Blending Untouched**: Match Mode reuses `PaletteGrid`/`PaletteCell` and `getCellBlendColor()` as-is; PaletteGrid only gained optional props (`onCellsChange`, `title`, `showFileActions`, `shortcutsEnabled`)
+- [x] **Verified**: Headless-browser play-through - unlimited picks, undo, hand-dragged blend hits 100% on 1-1, the 3-step recipe hits 100% on 1-12 while blending the same four colors at once only reaches 94.6%, XP/saving correct, Studio routing, day mode, 390px mobile with no overflow, no console errors
+
 ---
 
 ## Technical Implementation Details
@@ -254,10 +271,17 @@ Color-Blender/
 │   │   │   ├── GridSizeSelector.tsx  # Grid size selection UI
 │   │   │   ├── ColorHistory.tsx  # Color history display
 │   │   │   ├── LedBackdrop.tsx   # Scroll-reactive LED background
+│   │   │   ├── TopBar.tsx        # Brand, player level/XP, theme toggle
+│   │   │   ├── Icons.tsx         # Stroke icons + StarRow
+│   │   │   └── match/            # SourceImage, MatchResults
 │   │   │   └── Instructions.tsx
 │   │   ├── hooks/               # Custom React hooks
 │   │   │   ├── useHistory.ts    # Undo/redo state management
-│   │   │   └── useScrollEnergy.ts # Scroll -> CSS variable driver
+│   │   │   ├── useScrollEnergy.ts # Scroll -> CSS variable driver
+│   │   │   ├── useProgress.ts   # XP / combo / level bests in localStorage
+│   │   │   └── useHashRoute.ts  # #/ #/studio #/match #/match/<id>
+│   │   ├── game/                # Levels, scene generator, scoring, types
+│   │   ├── screens/             # Hub, Studio, MatchLevels, MatchPlay
 │   │   ├── utils/               # Utility functions
 │   │   │   ├── colorUtils.ts
 │   │   │   ├── canvasUtils.ts
@@ -363,6 +387,19 @@ ctx.fill()
 - **Duplicate Prevention**: Can't save same color twice (±3 RGB tolerance)
 - **Persistent Actions**: Save/remove buttons appear on hover
 - **Full Night Mode**: Tabs, buttons, and all elements support dark theme
+
+#### Match Mode (v3.0+)
+- **Files**: `src/game/` (`levels.ts`, `scene.ts`, `scoring.ts`, `types.ts`), `src/screens/` (`Hub`, `Studio`, `MatchLevels`, `MatchPlay`), `src/components/match/` (`SourceImage`, `MixingCell`, `MatchResults`), `src/hooks/useProgress.ts`, `src/hooks/useHashRoute.ts`, `src/game.css`
+- **Recipe**: `level.recipe` is a list of stages (`string[][]`); `targetColor(level)` blends stage 1 with `getCellBlendColor()`, then blends that result with stage 2's colors, and so on - exactly what the mixing cell does
+- **Staging = weighting**: e.g. `[[A, B], [C]]` gives A/4 + B/4 + C/2; `[[A, B], [C], [D]]` gives A/8 + B/8 + C/4 + D/2
+- **Match %**: `colorMatchPercent(a, b) = floor((100 - distance / 4.41) * 10) / 10` - the same scale as the color names; 100% only for an exact match
+- **Scored cell**: the mixing cell once it holds a single color (a blend, or a lone pick); lone picks always score under 90%
+- **Stars**: `[90, 95, 98]` thresholds; below 90% the level isn't cleared and the combo resets
+- **Score**: `(round(accuracy * 10) + max(0, par - seconds) * 10) * min(3, 1 + combo)`, `par = 30 + 15 * colors + 15 * (steps - 1)`
+- **Progress key**: `colorBlenderProgress.v3` (bumped each time the levels were redesigned)
+- **XP curve**: level L needs `100 + 50 * (L - 2)` XP over the previous level (level 2 at 100, level 3 at 250, level 5 at 700...)
+- **Scenes**: 30x20 grid at 16px per cell (480x320). `scene.sky` bands fill rows 0 to `horizon`, then `scene.layers` draw back to front. Layer kinds: sun, band, stars, rain, rainbow, ridge (optional snow cap), ripples, trees (with fruit), palm, flowers, buildings (lit windows), rect, temple, windmill, boat, lanterns, coral, fish, cactus, icebergs, tent. Random placement is seeded with mulberry32 so each level always draws the same picture
+- **Pure scoring**: `scoreRound(progress, input)` returns `{ result, next }`; `useProgress().commitRound()` applies it and saves
 
 #### Scroll-Reactive LED Backdrop (v2.9+)
 - **Layers** (`LedBackdrop.tsx`, fixed and pointer-events: none): `led-field` (neon blobs) → `led-sweep` (travelling light bar) → `led-grid` (dot-matrix mask) → `led-scan` (scanlines + vignette) → `led-strip` (scroll progress)
@@ -573,7 +610,20 @@ export default defineConfig({
 
 ## Version History
 
-### v2.9 - September 29, 2026 (Current)
+### v3.0 - October 9, 2026 (Current)
+**Game Mode, Stage 1: Hub, Match Mode & Progression**
+- New hub home screen; the original app is now the Studio mode, unchanged
+- Match Mode with 12 levels: hit a target color by mixing colors picked from a generated pixel-art image in a single mixing cell
+- Complex recipes: 3-4 color mixes and staged mixes (blend, add more, blend again) up to 3 steps
+- Unlimited picks, live match meter with star thresholds, per-level par time, and a combo multiplier for back-to-back 3-star clears
+- Results reveal the recipe after each round
+- Results screen with score breakdown, XP and level-ups; player level and rank shown in a new top bar
+- Progress (XP, combo, stars, best scores) saved in the browser; levels unlock in order
+- Hash routing so refresh and the back button work on GitHub Pages
+- Blend math untouched: Match Mode reuses the existing palette grid and `getCellBlendColor()`
+- Daily Blend, Gradient Puzzle and Chromadex appear on the hub as coming soon (stages 2-4)
+
+### v2.9 - September 29, 2026
 **Arcade HUD Redesign & Scroll-Reactive LED Backdrop**
 - Rebuilt the visual design as a game HUD: Orbitron + Rajdhani typography, neon gradient title with chromatic echo, glass panels with corner brackets, sheen-sweep buttons, glowing active states
 - Added a fixed five-layer LED backdrop that hue-shifts as you scroll and blooms brighter the faster you move
@@ -811,8 +861,8 @@ Free to use and modify for personal and commercial projects.
 
 ---
 
-**Last Updated**: September 29, 2026
-**Current Version**: v2.9 - Arcade HUD Redesign
+**Last Updated**: October 9, 2026
+**Current Version**: v3.0 - Game Mode (Hub + Match Mode)
 **Status**: Production Ready & Deployed ✅
 **Live on**: GitHub Pages (auto-deployed by GitHub Actions) - https://radalphus.github.io/Color-Blender/
-**Next Milestone**: Load saved palettes feature or palette library system
+**Next Milestone**: Game stage 2 - Daily Blend + streaks (then Chromadex, Gradient Puzzle, achievements)

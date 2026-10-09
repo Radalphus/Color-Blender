@@ -1,19 +1,18 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Color, PaletteType, GridSize } from './types';
-import { ImageUploader } from './components/ImageUploader';
-import { PaletteGrid } from './components/PaletteGrid';
-import { GridSizeSelector } from './components/GridSizeSelector';
-import { Instructions } from './components/Instructions';
-import { ColorHistory } from './components/ColorHistory';
+import { useState, useEffect, ReactNode } from 'react';
 import { LedBackdrop } from './components/LedBackdrop';
-import { useColorHistory } from './hooks/useColorHistory';
-import { useSavedColors } from './hooks/useSavedColors';
-import { compareColors } from './utils/colorUtils';
+import { TopBar } from './components/TopBar';
+import { Hub } from './screens/Hub';
+import { Studio } from './screens/Studio';
+import { MatchLevels } from './screens/MatchLevels';
+import { MatchPlay } from './screens/MatchPlay';
+import { useHashRoute } from './hooks/useHashRoute';
+import { useProgress } from './hooks/useProgress';
+import { getLevel, LEVELS } from './game/levels';
+import { isLevelUnlocked } from './game/scoring';
 import './App.css';
+import './game.css';
 
 function App() {
-  const [selectedColor, setSelectedColor] = useState<Color | null>(null);
-  const [paletteType, setPaletteType] = useState<PaletteType>('manual');
   const [nightMode, setNightMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('colorBlenderNightMode');
     return saved === null ? true : saved === 'true';
@@ -24,107 +23,53 @@ function App() {
     localStorage.setItem('colorBlenderNightMode', String(nightMode));
   }, [nightMode]);
 
-  // Grid size state with localStorage persistence
-  const [gridSize, setGridSize] = useState<GridSize>(() => {
-    const saved = localStorage.getItem('colorBlenderGridSize');
-    return (saved ? parseInt(saved) as GridSize : 3);
-  });
+  const { route, navigate } = useHashRoute();
+  const { progress, commitRound } = useProgress();
 
-  // Save grid size to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('colorBlenderGridSize', gridSize.toString());
-  }, [gridSize]);
+  // Bumped to restart the current level from scratch
+  const [attempt, setAttempt] = useState(0);
 
-  // Use custom hooks for color management
-  const { colorHistory, addToHistory } = useColorHistory();
-  const { savedColors, saveColor, removeSavedColor } = useSavedColors();
-  const [autoBlendedColors, setAutoBlendedColors] = useState<Color[]>([]);
-
-  const handleColorPicked = useCallback((color: Color) => {
-    setSelectedColor(color);
-    addToHistory(color);
-  }, [addToHistory]);
-
-  const handleAutoBlendCompleted = useCallback((colors: Color[]) => {
-    // Deduplicate colors using tolerance-based comparison
-    const uniqueColors: Color[] = [];
-
-    colors.forEach(color => {
-      const isDuplicate = uniqueColors.some(existing => compareColors(existing, color));
-      if (!isDuplicate) {
-        uniqueColors.push(color);
-      }
-    });
-
-    setAutoBlendedColors(uniqueColors);
-  }, []);
+  let screen: ReactNode = null;
+  if (route.name === 'hub') {
+    screen = <Hub progress={progress} onNavigate={navigate} />;
+  } else if (route.name === 'match') {
+    screen = <MatchLevels progress={progress} onNavigate={navigate} />;
+  } else if (route.name === 'match-level') {
+    const found = getLevel(route.levelId);
+    screen = found && isLevelUnlocked(LEVELS, found.index, progress)
+      ? (
+        <MatchPlay
+          key={`${found.level.id}-${attempt}`}
+          level={found.level}
+          index={found.index}
+          progress={progress}
+          commitRound={commitRound}
+          onNavigate={navigate}
+          onRestart={() => setAttempt((n) => n + 1)}
+        />
+      )
+      // Unknown or still-locked level in the URL: show the level list instead
+      : <MatchLevels progress={progress} onNavigate={navigate} />;
+  }
 
   return (
     <div className={`app-shell ${nightMode ? 'night-mode' : 'day-mode'}`}>
       <LedBackdrop />
 
       <div className="container">
-      <header>
-        <div className="header-content">
-          <div className="header-titles">
-            <h1 data-text="Color Blender">Color Blender</h1>
-            <p>Upload an image, pick colors, and blend them on your palette</p>
-          </div>
-          <button
-            className="night-mode-toggle"
-            onClick={() => setNightMode(!nightMode)}
-            title={nightMode ? 'Switch to Day Mode' : 'Switch to Night Mode'}
-          >
-            {nightMode ? '☀️' : '🌙'}
-          </button>
-        </div>
-      </header>
-
-      <div className="main-content">
-        <ImageUploader
-          onColorPicked={handleColorPicked}
-          selectedColor={selectedColor}
+        <TopBar
+          xp={progress.xp}
+          nightMode={nightMode}
+          onToggleNightMode={() => setNightMode(!nightMode)}
+          onHome={() => navigate({ name: 'hub' })}
         />
 
-        <div className="grid-section-wrapper">
-          <GridSizeSelector
-            gridSize={gridSize}
-            onGridSizeChange={setGridSize}
-          />
-          <div className="palette-type-toggle">
-            <button
-              className={`palette-type-btn ${paletteType === 'manual' ? 'active' : ''}`}
-              onClick={() => setPaletteType('manual')}
-            >
-              <span aria-hidden="true">⚙</span> Manual Palette
-            </button>
-            <button
-              className={`palette-type-btn ${paletteType === 'aesthetic' ? 'active' : ''}`}
-              onClick={() => setPaletteType('aesthetic')}
-            >
-              <span aria-hidden="true">✦</span> Aesthetic Palette
-            </button>
-          </div>
-          <PaletteGrid
-            gridSize={gridSize}
-            selectedColor={selectedColor}
-            paletteType={paletteType}
-            onBlendedColorCreated={addToHistory}
-            onAutoBlendCompleted={handleAutoBlendCompleted}
-          />
+        {screen}
+
+        {/* Studio stays mounted so its palette and image survive leaving and coming back */}
+        <div hidden={route.name !== 'studio'}>
+          <Studio active={route.name === 'studio'} onBack={() => navigate({ name: 'hub' })} />
         </div>
-      </div>
-
-      <ColorHistory
-        colors={colorHistory}
-        savedColors={savedColors}
-        autoBlendedColors={autoBlendedColors}
-        onColorSelect={setSelectedColor}
-        onSaveColor={saveColor}
-        onRemoveSavedColor={removeSavedColor}
-      />
-
-      <Instructions paletteType={paletteType} />
       </div>
     </div>
   );
